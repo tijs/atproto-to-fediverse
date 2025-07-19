@@ -10,6 +10,8 @@ account to your Mastodon account. Built specifically for
   using OAuth
 - **Automatic syncing**: Checks for new Bluesky posts every 15 minutes and
   cross-posts them to Mastodon
+- **Skips spam**: Only syncs posts not replies, reposts etc so hopefully only
+  things that makes sense in the Mastodon context
 - **Smart transformations**: Converts Bluesky mentions (@handle.bsky.social) to
   profile links since they don't exist on Mastodon
 - **Media support**: Uploads images and videos from Bluesky to your Mastodon
@@ -30,30 +32,9 @@ account to your Mastodon account. Built specifically for
 
 ## Setup on Val.town
 
-> **Note**: This bridge features simplified setup with dynamic OAuth
-> configuration. All client metadata is generated automatically - no static
-> files needed!
+### 1. Clone my Val
 
-### 1. Fork or Import Files
-
-Copy all files from this repository into your Val.town account. The project
-structure should look like:
-
-```text
-├── backend/
-│   ├── index.ts              # Main HTTP handler
-│   ├── database/
-│   ├── routes/
-│   └── services/
-├── cronjob.ts                # Cron job for syncing
-├── frontend/
-│   ├── index.html            # Landing page
-│   ├── setup.html            # Setup wizard UI
-│   ├── dashboard.html        # Dashboard UI
-│   └── *.tsx                 # React components
-└── shared/
-    └── types.ts              # Shared interfaces
-```
+Just clone my [https://www.val.town/x/tijs/atproto-to-fediverse](https://www.val.town/x/tijs/atproto-to-fediverse) val
 
 ### 2. Configure Val.town Triggers
 
@@ -79,10 +60,10 @@ Set these environment variables in your Val.town account:
 # Your Val.town deployment URL
 VALTOWN_URL=https://your-val-url.web.val.run
 
-# Bluesky App Password for sync service (recommended)
+# Bluesky App Password for sync service (services do not work with oauth yet on bsky)
 ATPROTO_APP_PASSWORD=your-bluesky-app-password
 
-# Security: restrict OAuth to specific handle only
+# Security: restrict login to specific handle only
 ATPROTO_ALLOWED_HANDLE=your.handle.bsky.social
 ```
 
@@ -127,18 +108,6 @@ no manual configuration needed.
 6. Connect your Mastodon account by entering your instance URL
 7. Complete the setup - that's all!
 
-#### Setup Status Checklist
-
-The landing page now shows a helpful checklist that tells you:
-
-- ✅ Which environment variables are configured
-- ❌ Which environment variables still need to be set
-- 📋 Overall setup progress
-- ⚠️ Any security or configuration issues
-
-This makes it much easier to see what still needs to be done before your bridge
-can start working.
-
 ## Usage
 
 Once configured, the service runs automatically:
@@ -164,6 +133,7 @@ Once configured, the service runs automatically:
 - Replies to other posts
 - Empty posts
 - Posts you've already cross-posted
+- Re-posts (posts that embed another post)
 
 ## Dashboard Features
 
