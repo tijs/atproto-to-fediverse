@@ -34,7 +34,9 @@ account to your Mastodon account. Built specifically for
 
 ### 1. Clone my Val
 
-Just clone my [https://www.val.town/x/tijs/atproto-to-fediverse](https://www.val.town/x/tijs/atproto-to-fediverse) val
+Just clone my
+[https://www.val.town/x/tijs/atproto-to-fediverse](https://www.val.town/x/tijs/atproto-to-fediverse)
+val
 
 ### 2. Configure Val.town Triggers
 

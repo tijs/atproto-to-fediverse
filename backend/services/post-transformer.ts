@@ -140,14 +140,24 @@ export class PostTransformer {
     }
 
     // Skip reposts and quote posts (posts that reference another post)
-    if (
-      post.record.embed && post.record.embed.$type === "app.bsky.embed.record"
-    ) {
-      // Skip all record embeds since the referenced content won't exist on Mastodon
-      console.log(
-        `Skipping repost/quote post ${post.uri} (referenced content not available on Mastodon)`,
-      );
-      return true;
+    if (post.record.embed) {
+      const embedType = post.record.embed.$type;
+
+      // Check for direct record embeds (reposts/quotes without media)
+      if (embedType === "app.bsky.embed.record") {
+        console.log(
+          `Skipping repost/quote post ${post.uri} (referenced content not available on Mastodon)`,
+        );
+        return true;
+      }
+
+      // Check for recordWithMedia embeds (quotes with media like images/video)
+      if (embedType === "app.bsky.embed.recordWithMedia") {
+        console.log(
+          `Skipping quote post with media ${post.uri} (referenced content not available on Mastodon)`,
+        );
+        return true;
+      }
     }
 
     // Skip if post has no content

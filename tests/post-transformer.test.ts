@@ -264,6 +264,34 @@ Deno.test("PostTransformer - should also skip quote posts with additional text",
   assertEquals(shouldSkip, true);
 });
 
+Deno.test("PostTransformer - should skip quote posts with media (recordWithMedia)", () => {
+  const post = createSamplePost({
+    record: {
+      text: "Check out this quote with an image!",
+      createdAt: "2024-01-01T10:00:00Z",
+      embed: {
+        $type: "app.bsky.embed.recordWithMedia",
+        record: {
+          uri: "at://did:plc:test/app.bsky.feed.post/original",
+          cid: "original_cid",
+        },
+        images: [{
+          alt: "My reaction image",
+          image: {
+            ref: "blob_ref_123",
+            mimeType: "image/jpeg",
+            size: 1024000,
+          },
+        }],
+      },
+    },
+  });
+
+  const shouldSkip = PostTransformer.shouldSkipPost(post);
+
+  assertEquals(shouldSkip, true);
+});
+
 Deno.test("PostTransformer - should not skip regular posts", () => {
   const post = createSamplePost();
 
