@@ -219,4 +219,11 @@ export class SQLiteStorageProvider implements StorageProvider {
     // Database migrations are handled separately
     // This method exists for interface compatibility
   }
+
+  async cullOldPostLogs(keepCount: number = 100): Promise<number> {
+    // Import the cullOldPostLogs function and use it
+    const { cullOldPostLogs } = await import("../database/queries.ts");
+    await cullOldPostLogs(keepCount);
+    return keepCount; // Return the number we intended to keep
+  }
 }

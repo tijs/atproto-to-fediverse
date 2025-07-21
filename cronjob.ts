@@ -44,6 +44,15 @@ export default async function () {
     // Run sync for the single user
     await syncService.syncAllUsers();
 
+    // Clean up old post logs to prevent database bloat
+    try {
+      await storage.cullOldPostLogs(100); // Keep only the 100 most recent posts
+      console.log("Old post logs cleaned up successfully");
+    } catch (error) {
+      console.error("Failed to clean up old post logs:", error);
+      // Don't fail the cron job if cleanup fails
+    }
+
     console.log("Cron job completed successfully");
   } catch (error) {
     console.error("Cron job failed:", error);

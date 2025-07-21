@@ -146,10 +146,28 @@ export async function getRecentPosts(
   limit: number = 10,
 ): Promise<PostTracking[]> {
   const result = await sqlite.execute(
-    `SELECT * FROM ${TABLES.POST_TRACKING} ORDER BY created_at DESC LIMIT ?`,
+    `SELECT * FROM ${TABLES.POST_TRACKING} 
+     WHERE sync_status = 'success' 
+     ORDER BY synced_at DESC 
+     LIMIT ?`,
     [limit],
   );
   return result.rows as unknown as PostTracking[];
+}
+
+export async function cullOldPostLogs(keepCount: number = 100): Promise<void> {
+  // Delete old post tracking records, keeping only the most recent ones
+  await sqlite.execute(
+    `
+    DELETE FROM ${TABLES.POST_TRACKING}
+    WHERE id NOT IN (
+      SELECT id FROM ${TABLES.POST_TRACKING}
+      ORDER BY created_at DESC
+      LIMIT ?
+    )
+  `,
+    [keepCount],
+  );
 }
 
 export async function getPostStats(): Promise<{

@@ -40,7 +40,7 @@ dashboard.get("/", requireAuth(), async (c) => {
     // Get dashboard data from database
     const [postStats, recentPosts, lastSyncLog] = await Promise.all([
       getPostStats(),
-      getRecentPosts(10),
+      getRecentPosts(25), // Show last 25 posts
       getLastSyncLog(),
     ]);
 

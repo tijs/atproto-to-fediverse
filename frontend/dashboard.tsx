@@ -383,7 +383,17 @@ function Dashboard() {
           <div className="bg-white p-6 rounded-lg shadow-sm text-center">
             <div className="text-2xl font-bold text-green-600">
               {data.stats.last_sync
-                ? new Date(data.stats.last_sync).toLocaleDateString()
+                ? new Date(data.stats.last_sync).toLocaleString(
+                  navigator.language,
+                  {
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  },
+                )
                 : "Never"}
             </div>
             <div className="text-gray-600">Last Sync</div>
@@ -414,7 +424,7 @@ function Dashboard() {
         {/* Recent Posts */}
         <div className="bg-white rounded-lg shadow-sm">
           <div className="p-6 border-b">
-            <h3 className="text-lg font-semibold">Recent Posts</h3>
+            <h3 className="text-lg font-semibold">Last 25 synced posts</h3>
           </div>
           <div className="p-6">
             {data.recent_posts.length === 0
@@ -430,8 +440,20 @@ function Dashboard() {
                     <div key={post.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-500">
-                          {post.atproto_created_at
-                            ? new Date(post.atproto_created_at).toLocaleString()
+                          Synced: {post.synced_at
+                            ? new Date(post.synced_at).toLocaleString(
+                              navigator.language,
+                              {
+                                timeZone:
+                                  Intl.DateTimeFormat().resolvedOptions()
+                                    .timeZone,
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )
                             : "Unknown date"}
                         </span>
                         <span
@@ -447,7 +469,15 @@ function Dashboard() {
                         </span>
                       </div>
                       <div className="text-sm text-gray-700 mb-2">
-                        <strong>Bluesky:</strong> {post.atproto_uri}
+                        <strong>Bluesky:</strong>
+                        <a
+                          href={post.atproto_uri.replace('at://', 'https://bsky.app/profile/').replace('/app.bsky.feed.post/', '/post/')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 ml-1"
+                        >
+                          {post.atproto_uri.replace('at://', 'https://bsky.app/profile/').replace('/app.bsky.feed.post/', '/post/')}
+                        </a>
                       </div>
                       {post.mastodon_url && (
                         <div className="text-sm text-gray-700 mb-2">
