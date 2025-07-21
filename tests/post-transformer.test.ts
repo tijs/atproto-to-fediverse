@@ -36,7 +36,7 @@ Deno.test("PostTransformer - should transform basic post", () => {
   assertEquals(result.hashtags.length, 0);
 });
 
-Deno.test("PostTransformer - should transform mentions to profile links", () => {
+Deno.test("PostTransformer - should transform mentions to profile links using DID", () => {
   const post = createSamplePost({
     record: {
       text: "Hello @alice.bsky.social!",
@@ -53,15 +53,16 @@ Deno.test("PostTransformer - should transform mentions to profile links", () => 
 
   const result = PostTransformer.transformPost(post);
 
+  // Should use DID in profile URL when available
   assertEquals(
     result.text,
-    "Hello @alice.bsky.social!",
+    "Hello https://bsky.app/profile/did:plc:alice!",
   );
   assertEquals(result.mentions.length, 1);
   assertEquals(result.mentions[0].handle, "alice.bsky.social");
   assertEquals(
     result.mentions[0].profileUrl,
-    "@alice.bsky.social",
+    "https://bsky.app/profile/did:plc:alice",
   );
 });
 
@@ -136,6 +137,35 @@ Deno.test("PostTransformer - should handle image embeds", () => {
   assertEquals(result.media[0].type, "image");
   assertEquals(result.media[0].url, "blob://blob_ref_123");
   assertEquals(result.media[0].description, "A beautiful sunset");
+});
+
+Deno.test("PostTransformer - should handle external embeds (link previews)", () => {
+  const post = createSamplePost({
+    record: {
+      text: "Check out this article!",
+      createdAt: "2024-01-01T10:00:00Z",
+      embed: {
+        $type: "app.bsky.embed.external",
+        external: {
+          uri: "https://example.com/article",
+          title: "Great Article Title",
+          description: "This is a preview of the article",
+          thumb: {
+            ref: "blob_ref_thumb",
+            mimeType: "image/jpeg",
+            size: 50000,
+          },
+        },
+      },
+    },
+  });
+
+  const result = PostTransformer.transformPost(post);
+
+  assertEquals(result.text, "Check out this article!");
+  assertEquals(result.links.length, 1);
+  assertEquals(result.links[0].url, "https://example.com/article");
+  assertEquals(result.links[0].displayText, "Great Article Title");
 });
 
 Deno.test("PostTransformer - should handle video embeds", () => {
@@ -367,10 +397,14 @@ Deno.test("PostTransformer - should handle complex post with multiple facets", (
 
   assertEquals(
     result.text,
-    "Hello @alice.bsky.social! Check out #bluesky and visit https://example.com",
+    "Hello https://bsky.app/profile/did:plc:alice! Check out #bluesky and visit https://example.com",
   );
   assertEquals(result.mentions.length, 1);
   assertEquals(result.mentions[0].handle, "alice.bsky.social");
+  assertEquals(
+    result.mentions[0].profileUrl,
+    "https://bsky.app/profile/did:plc:alice",
+  );
   assertEquals(result.hashtags.length, 1);
   assertEquals(result.hashtags[0], "bluesky");
   assertEquals(result.links.length, 1);
@@ -440,6 +474,168 @@ Deno.test("PostTransformer - should get blob data for upload", async () => {
   assertEquals(result.media.length, 1);
   assertEquals(result.blobData.length, 1);
   assertEquals(result.blobData[0].type, "image/jpeg");
+});
+
+Deno.test("PostTransformer - should replace display text with actual URLs in Mastodon formatting", () => {
+  const transformation = {
+    text: "Check out https://example.com for more info",
+    media: [],
+    mentions: [],
+    links: [{
+      url: "https://example.com/very/long/path/that/might/be/truncated",
+      displayText: "https://example.com",
+    }],
+    hashtags: [],
+  };
+
+  const result = PostTransformer.formatForMastodon(transformation);
+
+  assertEquals(
+    result.status,
+    "Check out https://example.com/very/long/path/that/might/be/truncated for more info",
+  );
+  assertEquals(result.media.length, 0);
+});
+
+Deno.test("PostTransformer - should handle truncated links with ellipsis", () => {
+  const transformation = {
+    text: "Check out https://example.com... for more info",
+    media: [],
+    mentions: [],
+    links: [{
+      url:
+        "https://example.com/very/long/path/with/many/segments/that/was/truncated",
+      displayText: "https://example.com...",
+    }],
+    hashtags: [],
+  };
+
+  const result = PostTransformer.formatForMastodon(transformation);
+
+  assertEquals(
+    result.status,
+    "Check out https://example.com/very/long/path/with/many/segments/that/was/truncated for more info",
+  );
+});
+
+Deno.test("PostTransformer - should handle multiple links in same post", () => {
+  const transformation = {
+    text: "Visit https://site1.com and https://site2.com...",
+    media: [],
+    mentions: [],
+    links: [
+      {
+        url: "https://site1.com",
+        displayText: "https://site1.com",
+      },
+      {
+        url: "https://site2.com/long/path/here",
+        displayText: "https://site2.com...",
+      },
+    ],
+    hashtags: [],
+  };
+
+  const result = PostTransformer.formatForMastodon(transformation);
+
+  assertEquals(
+    result.status,
+    "Visit https://site1.com and https://site2.com/long/path/here",
+  );
+});
+
+Deno.test("PostTransformer - should handle links that don't need replacement", () => {
+  const transformation = {
+    text: "Check out https://short.link today",
+    media: [],
+    mentions: [],
+    links: [{
+      url: "https://short.link",
+      displayText: "https://short.link",
+    }],
+    hashtags: [],
+  };
+
+  const result = PostTransformer.formatForMastodon(transformation);
+
+  assertEquals(result.status, "Check out https://short.link today");
+});
+
+Deno.test("PostTransformer - should handle post with links and apply character limit after replacement", () => {
+  const longText = "A".repeat(400);
+  const transformation = {
+    text: `${longText} Check out https://example.com... for details`,
+    media: [],
+    mentions: [],
+    links: [{
+      url:
+        "https://example.com/extremely/long/path/that/will/make/the/post/exceed/character/limits/when/expanded",
+      displayText: "https://example.com...",
+    }],
+    hashtags: [],
+  };
+
+  const result = PostTransformer.formatForMastodon(transformation);
+
+  // Should truncate the expanded text to 500 chars
+  assertEquals(result.status.length, 499);
+  assertEquals(result.status.endsWith("..."), true);
+  // Should contain the full URL before truncation
+  assertEquals(
+    result.status.includes("https://example.com/extremely/long/path"),
+    true,
+  );
+});
+
+Deno.test("PostTransformer - integration test: transform post with links and format for Mastodon", () => {
+  const text =
+    "Great article at https://example.com... and also check https://short.co";
+  const firstLinkStart = text.indexOf("https://example.com...");
+  const firstLinkEnd = firstLinkStart + "https://example.com...".length;
+  const secondLinkStart = text.indexOf("https://short.co");
+  const secondLinkEnd = secondLinkStart + "https://short.co".length;
+
+  const post = createSamplePost({
+    record: {
+      text: text,
+      createdAt: "2024-01-01T10:00:00Z",
+      facets: [
+        {
+          index: { byteStart: firstLinkStart, byteEnd: firstLinkEnd },
+          features: [{
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://example.com/full/path/to/article/with/very/long/url",
+          }],
+        },
+        {
+          index: { byteStart: secondLinkStart, byteEnd: secondLinkEnd },
+          features: [{
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://short.co",
+          }],
+        },
+      ],
+    },
+  });
+
+  const transformation = PostTransformer.transformPost(post);
+  const mastodonPost = PostTransformer.formatForMastodon(transformation);
+
+  // Should have extracted links correctly
+  assertEquals(transformation.links.length, 2);
+  assertEquals(
+    transformation.links[0].url,
+    "https://example.com/full/path/to/article/with/very/long/url",
+  );
+  assertEquals(transformation.links[0].displayText, "https://example.com...");
+  assertEquals(transformation.links[1].url, "https://short.co");
+  assertEquals(transformation.links[1].displayText, "https://short.co");
+
+  // Should have replaced display text with full URLs in final output
+  assertEquals(
+    mastodonPost.status,
+    "Great article at https://example.com/full/path/to/article/with/very/long/url and also check https://short.co",
+  );
 });
 
 // Run tests: deno test --allow-read --allow-write tests/post-transformer.test.ts

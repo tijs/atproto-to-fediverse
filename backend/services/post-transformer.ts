@@ -35,10 +35,17 @@ export class PostTransformer {
     let transformedText = "";
     for (const segment of richText.segments()) {
       if (segment.isMention() && segment.mention) {
-        // Keep mention as plain text since cross-platform interaction isn't possible
+        // Convert mention to Bluesky profile URL
         const handle = segment.text.replace("@", "");
-        mentions.push({ handle, profileUrl: segment.text });
-        transformedText += segment.text;
+        // Use DID if available for more reliable profile URLs
+        // DIDs work across all PDS instances, handles might change
+        const did = segment.mention.did;
+        const profileUrl = did
+          ? `https://bsky.app/profile/${did}`
+          : `https://bsky.app/profile/${handle}`;
+        mentions.push({ handle, profileUrl });
+        // Replace mention with profile URL in the text
+        transformedText += profileUrl;
       } else if (segment.isLink() && segment.link) {
         // Keep the original link
         links.push({
@@ -82,7 +89,19 @@ export class PostTransformer {
           break;
 
         case "app.bsky.embed.external":
-          // External links are handled by facets
+          // Add external link preview information
+          if (record.embed.external) {
+            const external = record.embed.external;
+            // Add the external URL if not already in links
+            const externalUrl = external.uri;
+            if (!links.some((link) => link.url === externalUrl)) {
+              links.push({
+                url: externalUrl,
+                displayText: external.title || externalUrl,
+              });
+            }
+            // Note: Mastodon will generate its own preview, so we don't need to handle description/thumb
+          }
           break;
       }
     }
@@ -246,6 +265,14 @@ export class PostTransformer {
     media: PostTransformation["media"];
   } {
     let status = transformation.text;
+
+    // Replace display text with actual URLs to ensure links are clickable
+    // This handles cases where Bluesky truncates URLs with ellipsis
+    for (const link of transformation.links) {
+      // Replace the display text with the actual URL
+      // This ensures full URLs are used even if display text was truncated
+      status = status.replace(link.displayText, link.url);
+    }
 
     // Mastodon has a 500 character limit by default
     // If post is too long, truncate and add indication

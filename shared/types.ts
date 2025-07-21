@@ -42,6 +42,16 @@ export interface ATProtoPost {
         mimeType: string;
         size: number;
       };
+      external?: {
+        uri: string;
+        title?: string;
+        description?: string;
+        thumb?: {
+          ref: string;
+          mimeType: string;
+          size: number;
+        };
+      };
       record?: {
         uri: string;
         cid: string;
