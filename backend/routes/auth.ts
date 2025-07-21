@@ -5,6 +5,7 @@ import {
   setCookie,
 } from "https://esm.sh/hono@3.11.7/cookie";
 import {
+  getUserAccount,
   getUserAccountByHandle,
   updateUserAccount,
 } from "../database/queries.ts";
@@ -155,6 +156,55 @@ export function requireAuth() {
     c.set("userId", session.userId);
     c.set("handle", session.handle);
     await next();
+  };
+}
+
+/**
+ * Middleware that blocks setup endpoints when setup is already completed.
+ * Use this to prevent setup interference after both Bluesky and Mastodon are connected.
+ */
+export function blockIfSetupCompleted() {
+  return async (c: any, next: any) => {
+    try {
+      const userAccount = await getUserAccount();
+
+      // If setup is completed (both accounts connected), block access
+      if (userAccount?.setup_completed) {
+        return c.json({
+          error:
+            "Setup already completed. Use dashboard to manage connections.",
+        }, 403);
+      }
+
+      await next();
+    } catch (error) {
+      // If no user account exists yet, allow setup to proceed
+      await next();
+    }
+  };
+}
+
+/**
+ * Middleware that requires setup to be completed before accessing endpoint.
+ * Use this for dashboard and other post-setup functionality.
+ */
+export function requireSetupCompleted() {
+  return async (c: any, next: any) => {
+    try {
+      const userAccount = await getUserAccount();
+
+      if (!userAccount?.setup_completed) {
+        return c.json({
+          error: "Complete setup first before accessing this feature.",
+        }, 403);
+      }
+
+      await next();
+    } catch (error) {
+      return c.json({
+        error: "Complete setup first before accessing this feature.",
+      }, 403);
+    }
   };
 }
 

@@ -6,6 +6,7 @@ import {
   updateUserAccount,
 } from "../database/queries.ts";
 import { SetupState, SetupStep } from "../../shared/types.ts";
+import { blockIfSetupCompleted } from "./auth.ts";
 
 const setup = new Hono();
 
@@ -54,7 +55,7 @@ async function getSetupState(): Promise<SetupState> {
 }
 
 // Start setup - get or create the single user account
-setup.post("/start", async (c) => {
+setup.post("/start", blockIfSetupCompleted(), async (c) => {
   try {
     // For single-user service, get or create the single user account
     let userAccount = await getUserAccount();
@@ -148,7 +149,7 @@ setup.get("/check", (c) => {
 });
 
 // Test connections
-setup.post("/test-connections/:userId", async (c) => {
+setup.post("/test-connections/:userId", blockIfSetupCompleted(), async (c) => {
   const _userId = c.req.param("userId");
 
   try {

@@ -471,12 +471,18 @@ function Dashboard() {
                       <div className="text-sm text-gray-700 mb-2">
                         <strong>Bluesky:</strong>
                         <a
-                          href={post.atproto_uri.replace('at://', 'https://bsky.app/profile/').replace('/app.bsky.feed.post/', '/post/')}
+                          href={post.atproto_uri.replace(
+                            "at://",
+                            "https://bsky.app/profile/",
+                          ).replace("/app.bsky.feed.post/", "/post/")}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-800 ml-1"
                         >
-                          {post.atproto_uri.replace('at://', 'https://bsky.app/profile/').replace('/app.bsky.feed.post/', '/post/')}
+                          {post.atproto_uri.replace(
+                            "at://",
+                            "https://bsky.app/profile/",
+                          ).replace("/app.bsky.feed.post/", "/post/")}
                         </a>
                       </div>
                       {post.mastodon_url && (
