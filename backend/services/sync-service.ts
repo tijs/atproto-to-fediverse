@@ -437,9 +437,14 @@ export class SyncService {
           }
         }
 
+        // Format the post for Mastodon (adds footnotes, handles character limits)
+        const mastodonFormatted = PostTransformer.formatForMastodon(
+          transformation,
+        );
+
         // Create the post
         const post = await mastodonClient.createPost({
-          status: transformation.text,
+          status: mastodonFormatted.status,
           media_ids: mediaIds,
           visibility: "public",
         });

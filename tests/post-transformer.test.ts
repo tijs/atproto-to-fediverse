@@ -53,10 +53,10 @@ Deno.test("PostTransformer - should transform mentions to profile links using DI
 
   const result = PostTransformer.transformPost(post);
 
-  // Should use DID in profile URL when available
+  // Should use DID in profile URL when available with footnote-style reference
   assertEquals(
     result.text,
-    "Hello https://bsky.app/profile/did:plc:alice!",
+    "Hello @alice.bsky.social (1)!",
   );
   assertEquals(result.mentions.length, 1);
   assertEquals(result.mentions[0].handle, "alice.bsky.social");
@@ -345,6 +345,27 @@ Deno.test("PostTransformer - should format post for Mastodon", () => {
   assertEquals(result.media.length, 0);
 });
 
+Deno.test("PostTransformer - should add footnotes for mentions in Mastodon format", () => {
+  const transformation = {
+    text: "Hello @alice.bsky.social (1)!",
+    media: [],
+    mentions: [{
+      handle: "alice.bsky.social",
+      profileUrl: "https://bsky.app/profile/did:plc:alice",
+    }],
+    links: [],
+    hashtags: [],
+  };
+
+  const result = PostTransformer.formatForMastodon(transformation);
+
+  assertEquals(
+    result.status,
+    "Hello @alice.bsky.social (1)!\n\n(1) https://bsky.app/profile/did:plc:alice",
+  );
+  assertEquals(result.media.length, 0);
+});
+
 Deno.test("PostTransformer - should truncate long posts for Mastodon", () => {
   const longText = "A".repeat(600); // Longer than 500 characters
   const transformation = {
@@ -397,7 +418,7 @@ Deno.test("PostTransformer - should handle complex post with multiple facets", (
 
   assertEquals(
     result.text,
-    "Hello https://bsky.app/profile/did:plc:alice! Check out #bluesky and visit https://example.com",
+    "Hello @alice.bsky.social (1)! Check out #bluesky and visit https://example.com",
   );
   assertEquals(result.mentions.length, 1);
   assertEquals(result.mentions[0].handle, "alice.bsky.social");

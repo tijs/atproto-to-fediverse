@@ -33,6 +33,8 @@ export class PostTransformer {
 
     // Transform the text with RichText formatting
     let transformedText = "";
+    let footnoteCounter = 1;
+
     for (const segment of richText.segments()) {
       if (segment.isMention() && segment.mention) {
         // Convert mention to Bluesky profile URL
@@ -44,8 +46,9 @@ export class PostTransformer {
           ? `https://bsky.app/profile/${did}`
           : `https://bsky.app/profile/${handle}`;
         mentions.push({ handle, profileUrl });
-        // Replace mention with profile URL in the text
-        transformedText += profileUrl;
+        // Use footnote-style reference: @handle (1)
+        transformedText += `@${handle} (${footnoteCounter})`;
+        footnoteCounter++;
       } else if (segment.isLink() && segment.link) {
         // Keep the original link
         links.push({
@@ -272,6 +275,14 @@ export class PostTransformer {
       // Replace the display text with the actual URL
       // This ensures full URLs are used even if display text was truncated
       status = status.replace(link.displayText, link.url);
+    }
+
+    // Add footnotes for mentions at the bottom
+    if (transformation.mentions.length > 0) {
+      status += "\n";
+      transformation.mentions.forEach((mention, index) => {
+        status += `\n(${index + 1}) ${mention.profileUrl}`;
+      });
     }
 
     // Mastodon has a 500 character limit by default

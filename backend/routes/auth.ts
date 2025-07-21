@@ -177,7 +177,7 @@ export function blockIfSetupCompleted() {
       }
 
       await next();
-    } catch (error) {
+    } catch (_error) {
       // If no user account exists yet, allow setup to proceed
       await next();
     }
@@ -200,7 +200,7 @@ export function requireSetupCompleted() {
       }
 
       await next();
-    } catch (error) {
+    } catch (_error) {
       return c.json({
         error: "Complete setup first before accessing this feature.",
       }, 403);
