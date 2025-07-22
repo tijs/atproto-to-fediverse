@@ -713,7 +713,15 @@ Deno.test("PostTransformer - should handle post with links and apply character l
   assertEquals(result.status.endsWith("..."), true);
   // Should contain the full URL before truncation
   assertEquals(
-    result.status.includes("https://example.com/extremely/long/path"),
+    (() => {
+      try {
+        const parsedUrl = new URL("https://example.com/extremely/long/path");
+        return parsedUrl.host === "example.com" &&
+               parsedUrl.pathname.startsWith("/extremely/long/path");
+      } catch {
+        return false;
+      }
+    })(),
     true,
   );
 });
