@@ -114,24 +114,6 @@ dashboard.get("/", requireAuth(), async (c) => {
   }
 });
 
-// Update user settings
-dashboard.put("/settings", requireAuth(), async (c) => {
-  const userId = c.get("userId") as string;
-
-  try {
-    const body = await c.req.json();
-
-    // For now, just return success - in a real implementation,
-    // you'd update the user settings in the database
-    console.log("Settings update for user:", userId, body);
-
-    return c.json({ success: true });
-  } catch (error) {
-    console.error("Settings update error:", error);
-    return c.json({ error: "Failed to update settings" }, 500);
-  }
-});
-
 // Reset user auth (clear tokens to force re-authentication)
 dashboard.post("/reset-auth", requireAuth(), async (c) => {
   try {

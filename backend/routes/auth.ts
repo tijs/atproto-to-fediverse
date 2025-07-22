@@ -5,6 +5,7 @@ import {
   setCookie,
 } from "https://esm.sh/hono@3.11.7/cookie";
 import {
+  createUserAccount,
   getUserAccount,
   getUserAccountByHandle,
   updateUserAccount,
@@ -25,25 +26,44 @@ auth.post("/login", async (c) => {
   }
 
   try {
-    // Find user by handle
-    const user = await getUserAccountByHandle(handle);
+    // Check if handle matches the allowed handle from environment
+    const allowedHandle = Deno.env.get("ATPROTO_ALLOWED_HANDLE");
+    
+    if (!allowedHandle) {
+      return c.json({
+        error: "ATPROTO_ALLOWED_HANDLE not configured. Please set this environment variable.",
+      }, 500);
+    }
 
+    // Normalize handles for comparison (remove @ if present, lowercase)
+    const normalizedInput = handle.toLowerCase().replace(/^@/, '');
+    const normalizedAllowed = allowedHandle.toLowerCase().replace(/^@/, '');
+
+    if (normalizedInput !== normalizedAllowed) {
+      return c.json({
+        error: `This service is configured for ${allowedHandle} only.`,
+      }, 403);
+    }
+
+    // For the allowed handle, always allow login
+    // This helps with recovery when setup state is inconsistent
+    let user = await getUserAccountByHandle(handle);
+
+    // If no user exists yet, create one for the allowed handle
     if (!user) {
-      return c.json({
-        error: "No account found for this handle. Please complete setup first.",
-      }, 404);
+      user = await getUserAccount();
+      if (!user) {
+        // Create a new user account for the allowed handle
+        await createUserAccount();
+        user = await getUserAccount();
+      }
     }
 
-    if (!user.setup_completed) {
-      return c.json({
-        error: "Setup not completed. Please finish setup first.",
-      }, 400);
-    }
-
-    // Create session
+    // Create session regardless of setup completion status
+    // This allows the user to access dashboard and fix issues
     const { sessionToken } = await createUserSession(
       user.id.toString(),
-      user.atproto_handle || handle,
+      handle,
     );
 
     // Set session cookie with simple settings (same as OAuth cookies)
@@ -55,7 +75,7 @@ auth.post("/login", async (c) => {
     return c.json({
       success: true,
       userId: user.id,
-      handle: user.atproto_handle || handle,
+      handle: handle,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -170,9 +190,11 @@ export function blockIfSetupCompleted() {
 
       // If setup is completed (both accounts connected), block access
       if (userAccount?.setup_completed) {
+        const allowedHandle = Deno.env.get("ATPROTO_ALLOWED_HANDLE");
         return c.json({
           error:
-            "Setup already completed. Use dashboard to manage connections.",
+            `Setup already completed. If you are ${allowedHandle}, please go to /login to access your dashboard and manage connections.`,
+          loginUrl: "/login"
         }, 403);
       }
 

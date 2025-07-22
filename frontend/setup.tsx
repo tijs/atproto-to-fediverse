@@ -159,7 +159,20 @@ function SetupApp() {
 
         {state.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-800">{state.error}</p>
+            <p className="text-red-800">
+              {state.error}
+              {state.error.includes("/login") && (
+                <span>
+                  {" "}
+                  <a 
+                    href="/login" 
+                    className="text-blue-600 underline hover:text-blue-800"
+                  >
+                    Click here to login
+                  </a>
+                </span>
+              )}
+            </p>
           </div>
         )}
 
