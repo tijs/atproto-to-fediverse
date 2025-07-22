@@ -329,7 +329,10 @@ oauth.get("/atproto/callback", async (c) => {
       code: code,
       redirect_uri: `${c.req.url.split("/oauth")[0]}/oauth/atproto/callback`,
       client_id: `${
-        (Deno.env.get("VALTOWN_URL") || "http://localhost:8080").replace(/\/$/, "")
+        (Deno.env.get("VALTOWN_URL") || "http://localhost:8080").replace(
+          /\/$/,
+          "",
+        )
       }/client`,
       code_verifier: codeVerifier,
     };

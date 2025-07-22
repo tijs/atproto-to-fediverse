@@ -345,7 +345,9 @@ Deno.test("PostTransformer - should skip posts that start with mentions when ena
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+    skip_mentions: true,
+  });
 
   assertEquals(shouldSkip, true);
 });
@@ -365,7 +367,9 @@ Deno.test("PostTransformer - should not skip posts that start with mentions when
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: false });
+  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+    skip_mentions: false,
+  });
 
   assertEquals(shouldSkip, false);
 });
@@ -385,7 +389,9 @@ Deno.test("PostTransformer - should not skip posts that contain mentions but don
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+    skip_mentions: true,
+  });
 
   assertEquals(shouldSkip, false);
 });
@@ -405,7 +411,9 @@ Deno.test("PostTransformer - should skip posts starting with mentions regardless
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+    skip_mentions: true,
+  });
 
   assertEquals(shouldSkip, true);
 });
@@ -425,7 +433,9 @@ Deno.test("PostTransformer - should not skip posts with mentions after other tex
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+    skip_mentions: true,
+  });
 
   assertEquals(shouldSkip, false);
 });

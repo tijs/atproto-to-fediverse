@@ -148,7 +148,10 @@ export class PostTransformer {
   /**
    * Check if a post should be skipped (replies, invalid data, etc.)
    */
-  static shouldSkipPost(post: ATProtoPost, settings?: { skip_mentions?: boolean }): boolean {
+  static shouldSkipPost(
+    post: ATProtoPost,
+    settings?: { skip_mentions?: boolean },
+  ): boolean {
     // Validate post structure first
     const validation = this.validator.validateATProtoPost(post);
     if (!validation.valid) {
@@ -189,18 +192,21 @@ export class PostTransformer {
       if (facets && facets.length > 0) {
         // Find the very first content in the post (after any initial whitespace)
         const trimmedText = post.record.text.trimStart();
-        const leadingWhitespaceLength = post.record.text.length - trimmedText.length;
-        
+        const leadingWhitespaceLength = post.record.text.length -
+          trimmedText.length;
+
         // Check if there's a mention facet that starts exactly at the beginning of actual content
-        const mentionAtStart = facets.find(facet => 
+        const mentionAtStart = facets.find((facet) =>
           facet.index.byteStart === leadingWhitespaceLength &&
           facet.features?.some((feature: any) =>
             feature.$type === "app.bsky.richtext.facet#mention"
           )
         );
-        
+
         if (mentionAtStart) {
-          console.log(`Skipping mention post ${post.uri} (starts with @handle)`);
+          console.log(
+            `Skipping mention post ${post.uri} (starts with @handle)`,
+          );
           return true;
         }
       }

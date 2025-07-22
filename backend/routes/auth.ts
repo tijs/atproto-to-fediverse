@@ -28,16 +28,17 @@ auth.post("/login", async (c) => {
   try {
     // Check if handle matches the allowed handle from environment
     const allowedHandle = Deno.env.get("ATPROTO_ALLOWED_HANDLE");
-    
+
     if (!allowedHandle) {
       return c.json({
-        error: "ATPROTO_ALLOWED_HANDLE not configured. Please set this environment variable.",
+        error:
+          "ATPROTO_ALLOWED_HANDLE not configured. Please set this environment variable.",
       }, 500);
     }
 
     // Normalize handles for comparison (remove @ if present, lowercase)
-    const normalizedInput = handle.toLowerCase().replace(/^@/, '');
-    const normalizedAllowed = allowedHandle.toLowerCase().replace(/^@/, '');
+    const normalizedInput = handle.toLowerCase().replace(/^@/, "");
+    const normalizedAllowed = allowedHandle.toLowerCase().replace(/^@/, "");
 
     if (normalizedInput !== normalizedAllowed) {
       return c.json({
@@ -189,12 +190,14 @@ export function blockIfSetupCompleted() {
       const userAccount = await getUserAccount();
 
       // Block only if both accounts are actually connected (setup is truly complete)
-      if (userAccount?.atproto_access_token && userAccount?.mastodon_access_token) {
+      if (
+        userAccount?.atproto_access_token && userAccount?.mastodon_access_token
+      ) {
         const allowedHandle = Deno.env.get("ATPROTO_ALLOWED_HANDLE");
         return c.json({
           error:
             `Setup already completed. If you are ${allowedHandle}, please go to /login to access your dashboard and manage connections.`,
-          loginUrl: "/login"
+          loginUrl: "/login",
         }, 403);
       }
 
