@@ -717,7 +717,7 @@ Deno.test("PostTransformer - should handle post with links and apply character l
       try {
         const parsedUrl = new URL("https://example.com/extremely/long/path");
         return parsedUrl.host === "example.com" &&
-               parsedUrl.pathname.startsWith("/extremely/long/path");
+          parsedUrl.pathname.startsWith("/extremely/long/path");
       } catch {
         return false;
       }
