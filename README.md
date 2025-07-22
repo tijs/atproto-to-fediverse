@@ -1,5 +1,7 @@
 # ATProto to Fediverse Bridge
 
+[![Deno](https://github.com/tijs/atproto-to-fediverse/actions/workflows/deno.yml/badge.svg)](https://github.com/tijs/atproto-to-fediverse/actions/workflows/deno.yml)
+
 A single-user bridge service that automatically cross-posts from your Bluesky
 account to your Mastodon account. Built specifically for
 [Val.town](https://val.town) with TypeScript and Deno.
