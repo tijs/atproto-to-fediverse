@@ -135,7 +135,7 @@ export async function runMigrations() {
       
       -- Post filtering (for future versions)
       skip_replies BOOLEAN DEFAULT TRUE,
-      skip_mentions BOOLEAN DEFAULT FALSE,
+      skip_mentions BOOLEAN DEFAULT TRUE,
       skip_reposts BOOLEAN DEFAULT FALSE,
       
       -- Media handling

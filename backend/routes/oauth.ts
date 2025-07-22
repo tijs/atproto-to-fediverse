@@ -251,7 +251,8 @@ oauth.get("/atproto/start", async (c) => {
     // Build authorization URL
     const authUrl = new URL(authMetadata.authorization_endpoint);
     authUrl.searchParams.set("response_type", "code");
-    const valtownUrl = Deno.env.get("VALTOWN_URL") || "http://localhost:8080";
+    const rawUrl = Deno.env.get("VALTOWN_URL") || "http://localhost:8080";
+    const valtownUrl = rawUrl.replace(/\/$/, ""); // Remove trailing slash
     authUrl.searchParams.set(
       "client_id",
       `${valtownUrl}/client`,
@@ -328,7 +329,7 @@ oauth.get("/atproto/callback", async (c) => {
       code: code,
       redirect_uri: `${c.req.url.split("/oauth")[0]}/oauth/atproto/callback`,
       client_id: `${
-        Deno.env.get("VALTOWN_URL") || "http://localhost:8080"
+        (Deno.env.get("VALTOWN_URL") || "http://localhost:8080").replace(/\/$/, "")
       }/client`,
       code_verifier: codeVerifier,
     };

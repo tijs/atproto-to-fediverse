@@ -188,8 +188,8 @@ export function blockIfSetupCompleted() {
     try {
       const userAccount = await getUserAccount();
 
-      // If setup is completed (both accounts connected), block access
-      if (userAccount?.setup_completed) {
+      // Block only if both accounts are actually connected (setup is truly complete)
+      if (userAccount?.atproto_access_token && userAccount?.mastodon_access_token) {
         const allowedHandle = Deno.env.get("ATPROTO_ALLOWED_HANDLE");
         return c.json({
           error:

@@ -56,7 +56,7 @@ export class InMemorySettingsStorage implements SettingsStorage {
       sync_enabled: true,
       sync_interval_minutes: 15,
       skip_replies: true,
-      skip_mentions: false,
+      skip_mentions: true,
       skip_reposts: false,
       include_media: true,
       compress_images: false,

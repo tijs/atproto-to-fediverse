@@ -10,8 +10,7 @@ account to your Mastodon account. Built specifically for
   using OAuth
 - **Automatic syncing**: Checks for new Bluesky posts every 15 minutes and
   cross-posts them to Mastodon
-- **Skips spam**: Only syncs posts not replies, reposts etc so hopefully only
-  things that makes sense in the Mastodon context
+- **Smart filtering**: Only syncs regular posts, not replies, reposts, or posts that start with mentions, so hopefully only content that makes sense in the Mastodon context
 - **Smart transformations**: Converts Bluesky mentions (@handle.bsky.social) to
   profile links since they don't exist on Mastodon
 - **Media support**: Uploads images and videos from Bluesky to your Mastodon
@@ -133,6 +132,7 @@ Once configured, the service runs automatically:
 **❌ Excluded:**
 
 - Replies to other posts
+- Posts that start with mentions (e.g., "@handle.bsky.social blah blah") - these are typically conversation starters
 - Empty posts
 - Posts you've already cross-posted
 - Re-posts (posts that embed another post)

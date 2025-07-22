@@ -330,6 +330,106 @@ Deno.test("PostTransformer - should not skip regular posts", () => {
   assertEquals(shouldSkip, false);
 });
 
+Deno.test("PostTransformer - should skip posts that start with mentions when enabled", () => {
+  const post = createSamplePost({
+    record: {
+      text: "@alice.bsky.social what do you think about this?",
+      createdAt: "2024-01-01T10:00:00Z",
+      facets: [{
+        index: { byteStart: 0, byteEnd: 18 }, // @alice.bsky.social starts at position 0
+        features: [{
+          $type: "app.bsky.richtext.facet#mention",
+          did: "did:plc:alice",
+        }],
+      }],
+    },
+  });
+
+  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+
+  assertEquals(shouldSkip, true);
+});
+
+Deno.test("PostTransformer - should not skip posts that start with mentions when disabled", () => {
+  const post = createSamplePost({
+    record: {
+      text: "@alice.bsky.social what do you think about this?",
+      createdAt: "2024-01-01T10:00:00Z",
+      facets: [{
+        index: { byteStart: 0, byteEnd: 18 }, // @alice.bsky.social starts at position 0
+        features: [{
+          $type: "app.bsky.richtext.facet#mention",
+          did: "did:plc:alice",
+        }],
+      }],
+    },
+  });
+
+  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: false });
+
+  assertEquals(shouldSkip, false);
+});
+
+Deno.test("PostTransformer - should not skip posts that contain mentions but don't start with them", () => {
+  const post = createSamplePost({
+    record: {
+      text: "I agree with @alice.bsky.social on this topic",
+      createdAt: "2024-01-01T10:00:00Z",
+      facets: [{
+        index: { byteStart: 13, byteEnd: 31 }, // @alice.bsky.social starts at position 13, not 0
+        features: [{
+          $type: "app.bsky.richtext.facet#mention",
+          did: "did:plc:alice",
+        }],
+      }],
+    },
+  });
+
+  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+
+  assertEquals(shouldSkip, false);
+});
+
+Deno.test("PostTransformer - should skip posts starting with mentions regardless of whitespace", () => {
+  const post = createSamplePost({
+    record: {
+      text: "  @alice.bsky.social what do you think about this?",
+      createdAt: "2024-01-01T10:00:00Z",
+      facets: [{
+        index: { byteStart: 2, byteEnd: 20 }, // @alice.bsky.social starts at position 2 (after whitespace)
+        features: [{
+          $type: "app.bsky.richtext.facet#mention",
+          did: "did:plc:alice",
+        }],
+      }],
+    },
+  });
+
+  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+
+  assertEquals(shouldSkip, true);
+});
+
+Deno.test("PostTransformer - should not skip posts with mentions after other text", () => {
+  const post = createSamplePost({
+    record: {
+      text: "Hi @alice.bsky.social what do you think?",
+      createdAt: "2024-01-01T10:00:00Z",
+      facets: [{
+        index: { byteStart: 3, byteEnd: 21 }, // @alice.bsky.social starts at position 3 (after "Hi ")
+        features: [{
+          $type: "app.bsky.richtext.facet#mention",
+          did: "did:plc:alice",
+        }],
+      }],
+    },
+  });
+
+  const shouldSkip = PostTransformer.shouldSkipPost(post, { skip_mentions: true });
+
+  assertEquals(shouldSkip, false);
+});
+
 Deno.test("PostTransformer - should format post for Mastodon", () => {
   const transformation = {
     text: "Hello world!",

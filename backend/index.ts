@@ -82,7 +82,9 @@ app.get("/api/setup/status", (c) => {
 
 // Serve client metadata for ATProto OAuth
 app.get("/client", (c) => {
-  const valtownUrl = Deno.env.get("VALTOWN_URL") || "http://localhost:8080";
+  const rawUrl = Deno.env.get("VALTOWN_URL") || "http://localhost:8080";
+  // Remove trailing slash to avoid double slashes in URLs
+  const valtownUrl = rawUrl.replace(/\/$/, "");
   const clientMetadata = {
     client_id: `${valtownUrl}/client`,
     client_name: "ATProto to Fediverse Bridge",

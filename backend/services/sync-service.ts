@@ -191,8 +191,8 @@ export class SyncService {
       for (const post of posts) {
         try {
           // Skip posts that should not be synced
-          if (PostTransformer.shouldSkipPost(post)) {
-            console.log(`Skipping post ${post.uri} (reply or empty)`);
+          if (PostTransformer.shouldSkipPost(post, settings)) {
+            console.log(`Skipping post ${post.uri} (filtered by settings)`);
             continue;
           }
 
