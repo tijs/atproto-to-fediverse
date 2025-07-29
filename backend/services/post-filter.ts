@@ -47,11 +47,20 @@ export class MentionFilter implements PostFilter {
   shouldSyncPost(post: ATProtoPost, settings: any): boolean {
     if (!settings?.skip_mentions) return true;
 
+    const text = post.record.text;
+    const trimmedText = text.trimStart();
+
+    // First check: Does the text start with @ (fallback for posts without facets)
+    if (trimmedText.startsWith("@")) {
+      console.log(
+        `Skipping mention post ${post.uri} (starts with @handle)`,
+      );
+      return false;
+    }
+
+    // Second check: For posts with facets, check if there's a mention facet at the start
     const facets = post.record.facets;
     if (facets && facets.length > 0) {
-      const text = post.record.text;
-      const trimmedText = text.trimStart();
-
       // Calculate byte position of where actual content starts
       const textEncoder = new TextEncoder();
       const leadingWhitespaceChars = text.length - trimmedText.length;
