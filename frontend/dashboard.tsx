@@ -9,10 +9,6 @@ interface DashboardData {
     mastodon_username?: string;
     setup_completed: boolean;
   };
-  settings: {
-    sync_enabled: boolean;
-    sync_interval_minutes: number;
-  };
   stats: {
     posts_synced: number;
     posts_failed: number;
@@ -68,37 +64,6 @@ function Dashboard() {
       setError(error.message || "Failed to load dashboard");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const toggleSync = async () => {
-    if (!data) return;
-
-    try {
-      const response = await fetch("/api/dashboard/settings", {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sync_enabled: !data.settings.sync_enabled,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          globalThis.location.href = "/login";
-          return;
-        }
-        throw new Error("Failed to update sync settings");
-      }
-
-      // Refresh dashboard data
-      await fetchDashboardData();
-    } catch (error) {
-      console.error("Toggle sync error:", error);
-      setError(error.message || "Failed to toggle sync");
     }
   };
 
@@ -346,29 +311,17 @@ function Dashboard() {
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Sync Settings</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Auto Sync</span>
-                <button
-                  type="button"
-                  onClick={toggleSync}
-                  className={`px-3 py-1 rounded text-sm font-medium ${
-                    data.settings.sync_enabled
-                      ? "bg-green-600 text-white hover:bg-green-700"
-                      : "bg-gray-600 text-white hover:bg-gray-700"
-                  }`}
-                >
-                  {data.settings.sync_enabled ? "Enabled" : "Disabled"}
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Sync Interval</span>
-                <span className="text-gray-900">
-                  {data.settings.sync_interval_minutes} minutes
-                </span>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold mb-4">Manual Sync</h3>
+            <p className="text-gray-600 mb-4">
+              Trigger a manual sync to check for new posts from Bluesky
+            </p>
+            <button
+              type="button"
+              onClick={triggerManualSync}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Sync Now
+            </button>
           </div>
         </div>
 
@@ -404,21 +357,6 @@ function Dashboard() {
             </div>
             <div className="text-gray-600">Failed Posts</div>
           </div>
-        </div>
-
-        {/* Manual Sync */}
-        <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-          <h3 className="text-lg font-semibold mb-4">Manual Sync</h3>
-          <p className="text-gray-600 mb-4">
-            Trigger a manual sync to check for new posts from Bluesky
-          </p>
-          <button
-            type="button"
-            onClick={triggerManualSync}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Sync Now
-          </button>
         </div>
 
         {/* Recent Posts */}
