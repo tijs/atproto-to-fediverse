@@ -39,5 +39,9 @@
     "unstable-temporal": true,
     "unstable-worker-options": true,
     "unstable-sloppy-imports": true
+  },
+  "tasks": {
+    "quality": "deno fmt && deno lint && deno test --allow-import --allow-env",
+    "deploy": "deno task quality && vt push"
   }
 }

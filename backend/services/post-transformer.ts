@@ -191,13 +191,20 @@ export class PostTransformer {
       const facets = post.record.facets;
       if (facets && facets.length > 0) {
         // Find the very first content in the post (after any initial whitespace)
-        const trimmedText = post.record.text.trimStart();
-        const leadingWhitespaceLength = post.record.text.length -
-          trimmedText.length;
+        const text = post.record.text;
+        const trimmedText = text.trimStart();
+
+        // Calculate byte position of where actual content starts
+        // We need to convert character positions to byte positions
+        const textEncoder = new TextEncoder();
+        const leadingWhitespaceChars = text.length - trimmedText.length;
+        const leadingWhitespaceBytes = textEncoder.encode(
+          text.substring(0, leadingWhitespaceChars),
+        ).length;
 
         // Check if there's a mention facet that starts exactly at the beginning of actual content
         const mentionAtStart = facets.find((facet) =>
-          facet.index.byteStart === leadingWhitespaceLength &&
+          facet.index.byteStart === leadingWhitespaceBytes &&
           facet.features?.some((feature: any) =>
             feature.$type === "app.bsky.richtext.facet#mention"
           )
