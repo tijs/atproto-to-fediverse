@@ -5,7 +5,6 @@ import {
 } from "../interfaces/http-client.ts";
 import { ATProtoPost, RetryConfig } from "../../shared/types.ts";
 import { PostTransformer } from "./post-transformer.ts";
-import { PostFilterManager } from "./post-filter.ts";
 
 export interface SyncResult {
   successful: number;
@@ -16,7 +15,6 @@ export interface SyncResult {
 export class MastodonSyncer {
   constructor(
     private storage: StorageProvider,
-    private postFilterManager: PostFilterManager,
     private retryConfig: RetryConfig = {
       maxRetries: 3,
       baseDelay: 1000,
@@ -26,11 +24,10 @@ export class MastodonSyncer {
   ) {}
 
   /**
-   * Filter posts based on settings and sync valid ones to Mastodon
+   * Sync posts to Mastodon
    */
-  async filterAndSyncPosts(
+  async syncPosts(
     posts: ATProtoPost[],
-    settings: any,
     atprotoClient: ATProtoHttpClient,
     mastodonClient: MastodonHttpClient,
   ): Promise<SyncResult> {
@@ -40,19 +37,6 @@ export class MastodonSyncer {
 
     for (const post of posts) {
       try {
-        // Apply filtering rules
-        if (!this.postFilterManager.shouldSyncPost(post, settings)) {
-          console.log(`Skipping post ${post.uri} (filtered by settings)`);
-          continue;
-        }
-
-        // Check if post already exists
-        const existingPost = await this.storage.postTracking.getByUri(post.uri);
-        if (existingPost) {
-          console.log(`Post ${post.uri} already tracked`);
-          continue;
-        }
-
         // Sync the post to Mastodon
         await this.syncPostToMastodon(post, atprotoClient, mastodonClient);
         successful++;

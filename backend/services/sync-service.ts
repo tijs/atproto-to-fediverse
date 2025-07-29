@@ -5,7 +5,7 @@ import {
   ATProtoHttpClient,
   MastodonHttpClient,
 } from "../interfaces/http-client.ts";
-import { RetryConfig, SyncResult } from "../../shared/types.ts";
+import { ATProtoPost, RetryConfig, SyncResult } from "../../shared/types.ts";
 import { SetupValidator } from "./setup-validator.ts";
 import { AuthenticationManager } from "./authentication-manager.ts";
 import { PostFetcher } from "./post-fetcher.ts";
@@ -52,7 +52,6 @@ export class SyncService {
     this.postFilterManager = new PostFilterManager();
     this.mastodonSyncer = new MastodonSyncer(
       dependencies.storage,
-      this.postFilterManager,
       dependencies.retryConfig,
     );
   }
@@ -62,6 +61,35 @@ export class SyncService {
    */
   getPostFilterManager(): PostFilterManager {
     return this.postFilterManager;
+  }
+
+  /**
+   * Filter posts based on settings and existing tracking
+   */
+  private async filterPosts(
+    posts: ATProtoPost[],
+    settings: any,
+  ): Promise<ATProtoPost[]> {
+    const filteredPosts: ATProtoPost[] = [];
+
+    for (const post of posts) {
+      // Apply filtering rules
+      if (!this.postFilterManager.shouldSyncPost(post, settings)) {
+        console.log(`Skipping post ${post.uri} (filtered by settings)`);
+        continue;
+      }
+
+      // Check if post already exists
+      const existingPost = await this.storage.postTracking.getByUri(post.uri);
+      if (existingPost) {
+        console.log(`Post ${post.uri} already tracked`);
+        continue;
+      }
+
+      filteredPosts.push(post);
+    }
+
+    return filteredPosts;
   }
 
   /**
@@ -98,10 +126,14 @@ export class SyncService {
 
       console.log(`Found ${posts.length} posts for user`);
 
-      // Filter and sync posts
-      const syncResults = await this.mastodonSyncer.filterAndSyncPosts(
-        posts,
-        settings,
+      // Filter posts
+      const filteredPosts = await this.filterPosts(posts, settings);
+
+      console.log(`${filteredPosts.length} posts passed filtering`);
+
+      // Sync filtered posts
+      const syncResults = await this.mastodonSyncer.syncPosts(
+        filteredPosts,
         atprotoClient,
         mastodonClient,
       );
