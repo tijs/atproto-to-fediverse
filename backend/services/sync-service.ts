@@ -6,6 +6,7 @@ import {
   MastodonHttpClient,
 } from "../interfaces/http-client.ts";
 import { ATProtoPost, RetryConfig, SyncResult } from "../../shared/types.ts";
+import { BRIDGE_CONFIG } from "../../config.ts";
 import { SetupValidator } from "./setup-validator.ts";
 import { AuthenticationManager } from "./authentication-manager.ts";
 import { PostFetcher } from "./post-fetcher.ts";
@@ -64,18 +65,17 @@ export class SyncService {
   }
 
   /**
-   * Filter posts based on settings and existing tracking
+   * Filter posts based on config and existing tracking
    */
   private async filterPosts(
     posts: ATProtoPost[],
-    settings: any,
   ): Promise<ATProtoPost[]> {
     const filteredPosts: ATProtoPost[] = [];
 
     for (const post of posts) {
-      // Apply filtering rules
-      if (!this.postFilterManager.shouldSyncPost(post, settings)) {
-        console.log(`Skipping post ${post.uri} (filtered by settings)`);
+      // Apply filtering rules using config
+      if (!this.postFilterManager.shouldSyncPost(post, BRIDGE_CONFIG.filters)) {
+        console.log(`Skipping post ${post.uri} (filtered by config)`);
         continue;
       }
 
@@ -107,7 +107,7 @@ export class SyncService {
 
     try {
       // Validate setup
-      const { account, settings, shouldProceed } = await this.setupValidator
+      const { account, shouldProceed } = await this.setupValidator
         .validateSetup();
       if (!shouldProceed) {
         return { ...result, success: true };
@@ -127,7 +127,7 @@ export class SyncService {
       console.log(`Found ${posts.length} posts for user`);
 
       // Filter posts
-      const filteredPosts = await this.filterPosts(posts, settings);
+      const filteredPosts = await this.filterPosts(posts);
 
       console.log(`${filteredPosts.length} posts passed filtering`);
 

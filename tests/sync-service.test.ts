@@ -167,7 +167,6 @@ async function setupTestEnvironment(options: {
   setupComplete?: boolean;
   hasATProtoTokens?: boolean;
   hasMastodonTokens?: boolean;
-  syncEnabled?: boolean;
 } = {}) {
   const storage = new InMemoryStorageProvider();
   await storage.initialize();
@@ -186,13 +185,6 @@ async function setupTestEnvironment(options: {
         mastodon_instance_url: "https://mastodon.social",
       }),
     });
-
-    await storage.settings.create();
-    if (options.syncEnabled !== undefined) {
-      await storage.settings.updateSingle({
-        sync_enabled: options.syncEnabled,
-      });
-    }
   }
 
   return storage;
@@ -382,7 +374,6 @@ Deno.test("Step 4: Filter posts", async (t) => {
 
   await t.step("filter mentions when skip_mentions enabled", async () => {
     const storage = await setupTestEnvironment();
-    await storage.settings.updateSingle({ skip_mentions: true });
 
     const posts = [
       createPost("at://test/1", "Regular post"),
@@ -494,20 +485,4 @@ Deno.test("Step 5: Sync to Mastodon", async (t) => {
   });
 });
 
-// Test 6: Sync enabled/disabled
-Deno.test("Sync enabled setting", async () => {
-  const storage = await setupTestEnvironment({ syncEnabled: false });
-  const posts = [createPost("at://test/1", "Post 1")];
-
-  const mastodonClient = new TestMastodonClient();
-  const service = new SyncService({
-    storage,
-    createATProtoClient: () => new TestATProtoClient(posts),
-    createMastodonClient: () => mastodonClient,
-  });
-
-  const result = await service.syncUser();
-  assertEquals(result.success, true);
-  assertEquals(result.postsProcessed, 0);
-  assertEquals(mastodonClient.posts.length, 0);
-});
+// Test 6: Removed - sync enabled/disabled is now handled by pausing the cron job

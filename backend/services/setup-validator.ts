@@ -2,7 +2,6 @@ import { StorageProvider } from "../interfaces/storage.ts";
 
 export interface SetupValidationResult {
   account: any;
-  settings: any;
   shouldProceed: boolean;
 }
 
@@ -22,22 +21,15 @@ export class SetupValidator {
     // Check if user has completed setup
     if (!account.setup_completed) {
       console.log("User setup not completed - skipping sync");
-      return { account, settings: null, shouldProceed: false };
+      return { account, shouldProceed: false };
     }
 
     // Check if user has required tokens
     if (!account.atproto_access_token || !account.mastodon_access_token) {
       console.log("User account not fully configured - skipping sync");
-      return { account, settings: null, shouldProceed: false };
+      return { account, shouldProceed: false };
     }
 
-    // Get settings
-    const settings = await this.storage.settings.getSingle();
-    if (!settings?.sync_enabled) {
-      console.log("Sync disabled for user");
-      return { account, settings, shouldProceed: false };
-    }
-
-    return { account, settings, shouldProceed: true };
+    return { account, shouldProceed: true };
   }
 }

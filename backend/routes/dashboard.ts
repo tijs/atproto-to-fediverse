@@ -3,7 +3,6 @@ import {
   getLastSyncLog,
   getPostStats,
   getRecentPosts,
-  getSettings,
   getUserAccount,
 } from "../database/queries.ts";
 import { requireAuth } from "./auth.ts";
@@ -34,9 +33,6 @@ dashboard.get("/", requireAuth(), async (c) => {
       return c.json({ error: "User not found" }, 404);
     }
 
-    // Get user settings
-    const settings = await getSettings();
-
     // Get dashboard data from database
     const [postStats, recentPosts, lastSyncLog] = await Promise.all([
       getPostStats(),
@@ -50,10 +46,6 @@ dashboard.get("/", requireAuth(), async (c) => {
         atproto_handle: user.atproto_handle,
         mastodon_username: user.mastodon_username,
         setup_completed: user.setup_completed,
-      },
-      settings: {
-        sync_enabled: settings?.sync_enabled ?? true,
-        sync_interval_minutes: settings?.sync_interval_minutes ?? 15,
       },
       stats: {
         posts_synced: postStats.posts_synced,

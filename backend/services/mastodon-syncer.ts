@@ -5,6 +5,7 @@ import {
 } from "../interfaces/http-client.ts";
 import { ATProtoPost, RetryConfig } from "../../shared/types.ts";
 import { PostTransformer } from "./post-transformer.ts";
+import { BRIDGE_CONFIG } from "../../config.ts";
 
 export interface SyncResult {
   successful: number;
@@ -15,12 +16,7 @@ export interface SyncResult {
 export class MastodonSyncer {
   constructor(
     private storage: StorageProvider,
-    private retryConfig: RetryConfig = {
-      maxRetries: 3,
-      baseDelay: 1000,
-      maxDelay: 30000,
-      backoffFactor: 2,
-    },
+    private retryConfig: RetryConfig = BRIDGE_CONFIG.sync.retry,
   ) {}
 
   /**
