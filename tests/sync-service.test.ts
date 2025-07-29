@@ -1,4 +1,4 @@
-// Unit tests for SyncService using dependency injection
+// Refactored sync service tests with focused, single-purpose tests
 
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/mod.ts";
 import { InMemoryStorageProvider } from "../backend/storage/memory-storage.ts";
@@ -9,17 +9,11 @@ import {
 } from "../backend/interfaces/http-client.ts";
 import { ATProtoPost } from "../shared/types.ts";
 
-// Mock ATProto client
-class MockATProtoClient implements ATProtoHttpClient {
-  private posts: ATProtoPost[] = [];
+// Minimal mock implementations
+class TestATProtoClient implements ATProtoHttpClient {
+  constructor(public posts: ATProtoPost[] = []) {}
 
-  constructor(posts: ATProtoPost[] = []) {
-    this.posts = posts;
-  }
-
-  fetchPosts(
-    _params: { actor: string; limit: number; cursor?: string },
-  ): Promise<any> {
+  fetchPosts(): Promise<any> {
     return Promise.resolve({
       feed: this.posts.map((post) => ({ post })),
       cursor: undefined,
@@ -31,11 +25,11 @@ class MockATProtoClient implements ATProtoHttpClient {
     return Promise.resolve(post ? { thread: { post } } : null);
   }
 
-  getProfile(_actor: string): Promise<any> {
-    return Promise.resolve({ did: _actor, handle: "test.bsky.social" });
+  getProfile(): Promise<any> {
+    return Promise.resolve({ did: "did:plc:test", handle: "test.bsky.social" });
   }
 
-  resolveHandle(_handle: string): Promise<any> {
+  resolveHandle(): Promise<any> {
     return Promise.resolve({ did: "did:plc:test" });
   }
 
@@ -47,7 +41,7 @@ class MockATProtoClient implements ATProtoHttpClient {
     return `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=test&cid=${blobRef}`;
   }
 
-  refreshToken(_refreshToken: string): Promise<any> {
+  refreshToken(): Promise<any> {
     return Promise.resolve({
       access_token: "new_token",
       refresh_token: "new_refresh_token",
@@ -56,14 +50,9 @@ class MockATProtoClient implements ATProtoHttpClient {
   }
 }
 
-// Mock Mastodon client
-class MockMastodonClient implements MastodonHttpClient {
-  private shouldFail = false;
-  private posts: any[] = [];
-
-  setFailure(shouldFail: boolean) {
-    this.shouldFail = shouldFail;
-  }
+class TestMastodonClient implements MastodonHttpClient {
+  public posts: any[] = [];
+  public shouldFail = false;
 
   verifyCredentials(): Promise<any> {
     return Promise.resolve({ id: "1", username: "test" });
@@ -77,15 +66,11 @@ class MockMastodonClient implements MastodonHttpClient {
     return Promise.resolve({ title: "Test Instance" });
   }
 
-  uploadMedia(_file: Blob, description?: string): Promise<any> {
-    if (this.shouldFail) {
-      return Promise.reject(new Error("Media upload failed"));
-    }
+  uploadMedia(): Promise<any> {
     return Promise.resolve({
       id: "media_123",
       type: "image",
       url: "https://example.com/media.jpg",
-      description,
     });
   }
 
@@ -98,345 +83,431 @@ class MockMastodonClient implements MastodonHttpClient {
 
   createPost(params: any): Promise<any> {
     if (this.shouldFail) {
-      return Promise.reject(new Error("Post creation failed"));
+      return Promise.reject(new Error("Network error"));
     }
-
     const post = {
       id: String(this.posts.length + 1),
       uri: `https://example.com/posts/${this.posts.length + 1}`,
       url: `https://example.com/posts/${this.posts.length + 1}`,
       content: params.status,
       created_at: new Date().toISOString(),
-      media_attachments: params.media_ids?.map((id: string) => ({ id })) || [],
     };
-
     this.posts.push(post);
     return Promise.resolve(post);
   }
 
-  registerApp(_params: any): Promise<any> {
+  registerApp(): Promise<any> {
     return Promise.resolve({
       client_id: "test_client_id",
       client_secret: "test_client_secret",
     });
   }
 
-  exchangeCodeForToken(_params: any): Promise<any> {
+  exchangeCodeForToken(): Promise<any> {
     return Promise.resolve({
       access_token: "test_token",
       token_type: "Bearer",
       scope: "read write",
     });
   }
-
-  getCreatedPosts() {
-    return this.posts;
-  }
 }
 
-// Test helper to create sample ATProto post
-function createSamplePost(
+// Helper functions
+function createPost(
   uri: string,
   text: string,
-  createdAt: string,
+  options: Partial<{
+    reply: boolean;
+    repost: boolean;
+    mention: boolean;
+    createdAt: string;
+  }> = {},
 ): ATProtoPost {
-  return {
+  const post: ATProtoPost = {
     uri,
     cid: "test_cid",
     author: {
       did: "did:plc:test",
-      handle: "test.custom-pds.example.com",
+      handle: "test.bsky.social",
       displayName: "Test User",
     },
     record: {
       text,
-      createdAt,
+      createdAt: options.createdAt || new Date().toISOString(),
       facets: [],
     },
-    indexedAt: createdAt,
+    indexedAt: new Date().toISOString(),
   };
+
+  if (options.reply) {
+    post.record.reply = {
+      root: { uri: "root-uri", cid: "root-cid" },
+      parent: { uri: "parent-uri", cid: "parent-cid" },
+    };
+  }
+
+  if (options.repost) {
+    post.record.embed = { $type: "app.bsky.embed.record" };
+  }
+
+  if (options.mention) {
+    post.record.facets = [{
+      index: { byteStart: 0, byteEnd: text.indexOf(" ") },
+      features: [{
+        $type: "app.bsky.richtext.facet#mention",
+        did: "did:plc:someone",
+      }],
+    }];
+  }
+
+  return post;
 }
 
-Deno.test("SyncService - should sync posts successfully", async () => {
-  // Setup
+async function setupTestEnvironment(options: {
+  setupComplete?: boolean;
+  hasATProtoTokens?: boolean;
+  hasMastodonTokens?: boolean;
+  syncEnabled?: boolean;
+} = {}) {
   const storage = new InMemoryStorageProvider();
   await storage.initialize();
 
-  const _account = await storage.userAccounts.create();
-  await storage.userAccounts.updateSingle({
-    setup_completed: true,
-    atproto_access_token: "token",
-    atproto_pds_url: "https://custom-pds.example.com",
-    atproto_did: "did:plc:test",
-    mastodon_access_token: "token",
-    mastodon_instance_url: "https://mastodon.social",
+  if (options.setupComplete !== false) {
+    await storage.userAccounts.create();
+    await storage.userAccounts.updateSingle({
+      setup_completed: options.setupComplete ?? true,
+      ...(options.hasATProtoTokens !== false && {
+        atproto_access_token: "token",
+        atproto_pds_url: "https://bsky.social",
+        atproto_did: "did:plc:test",
+      }),
+      ...(options.hasMastodonTokens !== false && {
+        mastodon_access_token: "token",
+        mastodon_instance_url: "https://mastodon.social",
+      }),
+    });
+
+    await storage.settings.create();
+    if (options.syncEnabled !== undefined) {
+      await storage.settings.updateSingle({
+        sync_enabled: options.syncEnabled,
+      });
+    }
+  }
+
+  return storage;
+}
+
+// Test 1: Setup validation
+Deno.test("Step 1: Validate setup is complete", async (t) => {
+  await t.step("no user account", async () => {
+    const storage = await setupTestEnvironment({ setupComplete: false });
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, false);
+    assertEquals(result.errors[0].message, "User account not found");
   });
 
-  await storage.settings.create();
+  await t.step("setup not completed", async () => {
+    const storage = await setupTestEnvironment();
+    await storage.userAccounts.updateSingle({ setup_completed: false });
 
-  // Create mock clients
-  const now = new Date();
-  const posts = [
-    createSamplePost(
-      "at://did:plc:test/app.bsky.feed.post/1",
-      "Hello world!",
-      now.toISOString(),
-    ),
-    createSamplePost(
-      "at://did:plc:test/app.bsky.feed.post/2",
-      "Another post",
-      new Date(now.getTime() + 1000).toISOString(),
-    ),
-  ];
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
 
-  const mockATProtoClient = new MockATProtoClient(posts);
-  const mockMastodonClient = new MockMastodonClient();
+    const result = await service.syncUser();
+    assertEquals(result.success, true);
+    assertEquals(result.postsProcessed, 0);
+  });
 
-  // Create service
-  const syncService = new SyncService({
+  await t.step("setup completed with all tokens", async () => {
+    const storage = await setupTestEnvironment();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, true);
+  });
+});
+
+// Test 2: Authentication validation
+Deno.test("Step 2: Validate authentication", async (t) => {
+  await t.step("missing access tokens (early check)", async () => {
+    const storage = await setupTestEnvironment({
+      hasATProtoTokens: false,
+      hasMastodonTokens: false,
+    });
+
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, true); // Graceful handling
+    assertEquals(result.postsProcessed, 0);
+  });
+
+  await t.step("missing ATProto URL/DID", async () => {
+    const storage = await setupTestEnvironment();
+    await storage.userAccounts.updateSingle({
+      atproto_pds_url: null,
+      atproto_did: null,
+    });
+
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, false);
+    assertEquals(result.errors[0].message, "Missing ATProto credentials");
+  });
+
+  await t.step("missing Mastodon instance URL", async () => {
+    const storage = await setupTestEnvironment();
+    await storage.userAccounts.updateSingle({
+      mastodon_instance_url: null,
+    });
+
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, false);
+    assertEquals(result.errors[0].message, "Missing Mastodon credentials");
+  });
+});
+
+// Test 3: Fetching posts
+Deno.test("Step 3: Fetch ATProto posts", async (t) => {
+  await t.step("fetch posts successfully", async () => {
+    const storage = await setupTestEnvironment();
+    const posts = [
+      createPost("at://did:plc:test/app.bsky.feed.post/1", "Post 1"),
+      createPost("at://did:plc:test/app.bsky.feed.post/2", "Post 2"),
+    ];
+
+    const atprotoClient = new TestATProtoClient(posts);
+    let fetchCalled = false;
+    const originalFetch = atprotoClient.fetchPosts.bind(atprotoClient);
+    atprotoClient.fetchPosts = () => {
+      fetchCalled = true;
+      return originalFetch();
+    };
+
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => atprotoClient,
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, true);
+    assertEquals(result.postsProcessed, 2);
+    assertEquals(fetchCalled, true);
+  });
+
+  await t.step("handle empty feed", async () => {
+    const storage = await setupTestEnvironment();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient([]),
+      createMastodonClient: () => new TestMastodonClient(),
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, true);
+    assertEquals(result.postsProcessed, 0);
+  });
+});
+
+// Test 4: Post filtering
+Deno.test("Step 4: Filter posts", async (t) => {
+  await t.step("filter replies", async () => {
+    const storage = await setupTestEnvironment();
+    const posts = [
+      createPost("at://test/1", "Regular post"),
+      createPost("at://test/2", "Reply post", { reply: true }),
+    ];
+
+    const mastodonClient = new TestMastodonClient();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(posts),
+      createMastodonClient: () => mastodonClient,
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.postsProcessed, 2);
+    assertEquals(mastodonClient.posts.length, 1);
+    assertEquals(mastodonClient.posts[0].content, "Regular post");
+  });
+
+  await t.step("filter reposts", async () => {
+    const storage = await setupTestEnvironment();
+    const posts = [
+      createPost("at://test/1", "Regular post"),
+      createPost("at://test/2", "Repost", { repost: true }),
+    ];
+
+    const mastodonClient = new TestMastodonClient();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(posts),
+      createMastodonClient: () => mastodonClient,
+    });
+
+    await service.syncUser();
+    assertEquals(mastodonClient.posts.length, 1);
+    assertEquals(mastodonClient.posts[0].content, "Regular post");
+  });
+
+  await t.step("filter mentions when skip_mentions enabled", async () => {
+    const storage = await setupTestEnvironment();
+    await storage.settings.updateSingle({ skip_mentions: true });
+
+    const posts = [
+      createPost("at://test/1", "Regular post"),
+      createPost("at://test/2", "@someone hello", { mention: true }),
+    ];
+
+    const mastodonClient = new TestMastodonClient();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(posts),
+      createMastodonClient: () => mastodonClient,
+    });
+
+    await service.syncUser();
+    assertEquals(mastodonClient.posts.length, 1);
+    assertEquals(mastodonClient.posts[0].content, "Regular post");
+  });
+});
+
+// Test 5: Sync to Mastodon
+Deno.test("Step 5: Sync to Mastodon", async (t) => {
+  await t.step("successful sync", async () => {
+    const storage = await setupTestEnvironment();
+    const posts = [
+      createPost("at://test/1", "Post 1"),
+      createPost("at://test/2", "Post 2"),
+    ];
+
+    const mastodonClient = new TestMastodonClient();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(posts),
+      createMastodonClient: () => mastodonClient,
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, true);
+    assertEquals(result.postsSuccessful, 2);
+    assertEquals(result.postsFailed, 0);
+
+    // Verify posts were created
+    assertEquals(mastodonClient.posts.length, 2);
+
+    // Verify tracking records
+    const tracked = await storage.postTracking.getRecent();
+    assertEquals(tracked.length, 2);
+    assertEquals(tracked[0].sync_status, "success");
+  });
+
+  await t.step("handle sync failure", async () => {
+    const storage = await setupTestEnvironment();
+    const posts = [createPost("at://test/1", "Post 1")];
+
+    const mastodonClient = new TestMastodonClient();
+    mastodonClient.shouldFail = true;
+
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(posts),
+      createMastodonClient: () => mastodonClient,
+      retryConfig: {
+        maxRetries: 0,
+        baseDelay: 100,
+        maxDelay: 1000,
+        backoffFactor: 2,
+      },
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.success, true);
+    assertEquals(result.postsSuccessful, 0);
+    assertEquals(result.postsFailed, 1);
+    assertEquals(result.errors[0].message, "Network error");
+
+    // Verify tracking shows failure
+    const failed = await storage.postTracking.getFailed();
+    assertEquals(failed.length, 1);
+    assertEquals(failed[0].error_message, "Network error");
+  });
+
+  await t.step("skip already synced posts", async () => {
+    const storage = await setupTestEnvironment();
+
+    // Pre-track a post
+    await storage.postTracking.create({
+      atproto_uri: "at://test/1",
+      atproto_cid: "cid1",
+      atproto_rkey: "1",
+      content_hash: "hash1",
+      atproto_created_at: Math.floor(Date.now() / 1000),
+    });
+
+    const posts = [
+      createPost("at://test/1", "Already synced"),
+      createPost("at://test/2", "New post"),
+    ];
+
+    const mastodonClient = new TestMastodonClient();
+    const service = new SyncService({
+      storage,
+      createATProtoClient: () => new TestATProtoClient(posts),
+      createMastodonClient: () => mastodonClient,
+    });
+
+    const result = await service.syncUser();
+    assertEquals(result.postsSuccessful, 1);
+    assertEquals(mastodonClient.posts.length, 1);
+    assertEquals(mastodonClient.posts[0].content, "New post");
+  });
+});
+
+// Test 6: Sync enabled/disabled
+Deno.test("Sync enabled setting", async () => {
+  const storage = await setupTestEnvironment({ syncEnabled: false });
+  const posts = [createPost("at://test/1", "Post 1")];
+
+  const mastodonClient = new TestMastodonClient();
+  const service = new SyncService({
     storage,
-    createATProtoClient: (
-      _pdsUrl: string,
-      _accessToken: string,
-      _refreshToken: string,
-      _did: string,
-    ) => mockATProtoClient,
-    createMastodonClient: () => mockMastodonClient,
+    createATProtoClient: () => new TestATProtoClient(posts),
+    createMastodonClient: () => mastodonClient,
   });
 
-  // Execute
-  const result = await syncService.syncUser();
-
-  // Verify
+  const result = await service.syncUser();
   assertEquals(result.success, true);
-  assertEquals(result.postsProcessed, 2);
-  assertEquals(result.postsSuccessful, 2);
-  assertEquals(result.postsFailed, 0);
-
-  // Check that posts were tracked
-  const trackedPosts = await storage.postTracking.getRecent();
-  assertEquals(trackedPosts.length, 2);
-  assertEquals(trackedPosts[0].sync_status, "success");
-  assertEquals(trackedPosts[1].sync_status, "success");
-
-  // Check that posts were created on Mastodon
-  const mastodonPosts = mockMastodonClient.getCreatedPosts();
-  assertEquals(mastodonPosts.length, 2);
-  assertEquals(mastodonPosts[0].content, "Hello world!");
-  assertEquals(mastodonPosts[1].content, "Another post");
+  assertEquals(result.postsProcessed, 0);
+  assertEquals(mastodonClient.posts.length, 0);
 });
-
-Deno.test("SyncService - should handle post creation failures", async () => {
-  // Setup
-  const storage = new InMemoryStorageProvider();
-  await storage.initialize();
-
-  await storage.userAccounts.create();
-  await storage.userAccounts.updateSingle({
-    setup_completed: true,
-    atproto_access_token: "token",
-    atproto_pds_url: "https://custom-pds.example.com",
-    atproto_did: "did:plc:test",
-    mastodon_access_token: "token",
-    mastodon_instance_url: "https://mastodon.social",
-  });
-
-  await storage.settings.create();
-
-  // Create mock clients with failure
-  const posts = [
-    createSamplePost(
-      "at://did:plc:test/app.bsky.feed.post/1",
-      "Hello world!",
-      new Date().toISOString(),
-    ),
-  ];
-
-  const mockATProtoClient = new MockATProtoClient(posts);
-  const mockMastodonClient = new MockMastodonClient();
-  mockMastodonClient.setFailure(true); // Make it fail
-
-  // Create service with no retries to speed up test
-  const syncService = new SyncService({
-    storage,
-    createATProtoClient: (
-      _pdsUrl: string,
-      _accessToken: string,
-      _refreshToken: string,
-      _did: string,
-    ) => mockATProtoClient,
-    createMastodonClient: () => mockMastodonClient,
-    retryConfig: {
-      maxRetries: 0,
-      baseDelay: 100,
-      maxDelay: 1000,
-      backoffFactor: 2,
-    },
-  });
-
-  // Execute
-  const result = await syncService.syncUser();
-
-  // Verify
-  assertEquals(result.success, true); // Sync completes even with failures
-  assertEquals(result.postsProcessed, 1);
-  assertEquals(result.postsSuccessful, 0);
-  assertEquals(result.postsFailed, 1);
-  assertEquals(result.errors.length, 1);
-  assertEquals(result.errors[0].message, "Post creation failed");
-
-  // Check that post was marked as failed
-  const failedPosts = await storage.postTracking.getFailed();
-  assertEquals(failedPosts.length, 1);
-  assertEquals(failedPosts[0].sync_status, "failed");
-  assertEquals(failedPosts[0].error_message, "Post creation failed");
-});
-
-Deno.test("SyncService - should skip posts that already exist", async () => {
-  // Setup
-  const storage = new InMemoryStorageProvider();
-  await storage.initialize();
-
-  await storage.userAccounts.create();
-  await storage.userAccounts.updateSingle({
-    setup_completed: true,
-    atproto_access_token: "token",
-    atproto_pds_url: "https://custom-pds.example.com",
-    atproto_did: "did:plc:test",
-    mastodon_access_token: "token",
-    mastodon_instance_url: "https://mastodon.social",
-  });
-
-  await storage.settings.create();
-
-  // Pre-create a post tracking record
-  const postUri = "at://did:plc:test/app.bsky.feed.post/1";
-  await storage.postTracking.create({
-    atproto_uri: postUri,
-    atproto_cid: "test_cid",
-    atproto_rkey: "1",
-    content_hash: "test_hash",
-    atproto_created_at: Math.floor(Date.now() / 1000),
-  });
-
-  // Create mock clients
-  const posts = [
-    createSamplePost(postUri, "Hello world!", new Date().toISOString()),
-  ];
-
-  const mockATProtoClient = new MockATProtoClient(posts);
-  const mockMastodonClient = new MockMastodonClient();
-
-  // Create service
-  const syncService = new SyncService({
-    storage,
-    createATProtoClient: (
-      _pdsUrl: string,
-      _accessToken: string,
-      _refreshToken: string,
-      _did: string,
-    ) => mockATProtoClient,
-    createMastodonClient: () => mockMastodonClient,
-  });
-
-  // Execute
-  const result = await syncService.syncUser();
-
-  // Verify
-  assertEquals(result.success, true);
-  assertEquals(result.postsProcessed, 1);
-  assertEquals(result.postsSuccessful, 0); // Should be 0 because post was skipped
-  assertEquals(result.postsFailed, 0);
-
-  // Check that no new posts were created on Mastodon
-  const mastodonPosts = mockMastodonClient.getCreatedPosts();
-  assertEquals(mastodonPosts.length, 0);
-});
-
-Deno.test("SyncService - should handle missing user account", async () => {
-  // Setup
-  const storage = new InMemoryStorageProvider();
-  await storage.initialize();
-
-  const mockATProtoClient = new MockATProtoClient();
-  const mockMastodonClient = new MockMastodonClient();
-
-  // Create service
-  const syncService = new SyncService({
-    storage,
-    createATProtoClient: (
-      _pdsUrl: string,
-      _accessToken: string,
-      _refreshToken: string,
-      _did: string,
-    ) => mockATProtoClient,
-    createMastodonClient: () => mockMastodonClient,
-  });
-
-  // Execute
-  const result = await syncService.syncUser();
-
-  // Verify
-  assertEquals(result.success, false);
-  assertEquals(result.errors.length, 1);
-  assertEquals(result.errors[0].message, "User account not found");
-});
-
-Deno.test("SyncService - should respect sync disabled setting", async () => {
-  // Setup
-  const storage = new InMemoryStorageProvider();
-  await storage.initialize();
-
-  await storage.userAccounts.create();
-  await storage.userAccounts.updateSingle({
-    setup_completed: true,
-    atproto_access_token: "token",
-    atproto_pds_url: "https://custom-pds.example.com",
-    atproto_did: "did:plc:test",
-    mastodon_access_token: "token",
-    mastodon_instance_url: "https://mastodon.social",
-  });
-
-  // Create settings with sync disabled
-  await storage.settings.create();
-  await storage.settings.updateSingle({ sync_enabled: false });
-
-  // Create mock clients
-  const posts = [
-    createSamplePost(
-      "at://did:plc:test/app.bsky.feed.post/1",
-      "Hello world!",
-      "2024-01-01T10:00:00Z",
-    ),
-  ];
-
-  const mockATProtoClient = new MockATProtoClient(posts);
-  const mockMastodonClient = new MockMastodonClient();
-
-  // Create service
-  const syncService = new SyncService({
-    storage,
-    createATProtoClient: (
-      _pdsUrl: string,
-      _accessToken: string,
-      _refreshToken: string,
-      _did: string,
-    ) => mockATProtoClient,
-    createMastodonClient: () => mockMastodonClient,
-  });
-
-  // Execute
-  const result = await syncService.syncUser();
-
-  // Verify
-  assertEquals(result.success, true);
-  assertEquals(result.postsProcessed, 0); // Should be 0 because sync is disabled
-  assertEquals(result.postsSuccessful, 0);
-  assertEquals(result.postsFailed, 0);
-
-  // Check that no posts were created on Mastodon
-  const mastodonPosts = mockMastodonClient.getCreatedPosts();
-  assertEquals(mastodonPosts.length, 0);
-});
-
-// Run tests: deno test --allow-read --allow-write tests/sync-service.test.ts

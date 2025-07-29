@@ -129,9 +129,8 @@ Mastodon uses traditional OAuth2) handled in `backend/routes/oauth.ts`.
 
 1. **Setup**: User runs setup wizard → OAuth tokens stored in SQLite (single
    user account)
-2. **Sync**: Cron job (`cronjob.ts`) → `SyncService.syncAllUsers()` → gets
-   single user → fetches posts from ATProto → transforms content → posts to
-   Mastodon
+2. **Sync**: Cron job (`cronjob.ts`) → `SyncService.syncUser()` → fetches posts
+   from ATProto → transforms content → posts to Mastodon
 3. **Transformation**: `PostTransformer` converts Bluesky mentions to profile
    links since Mastodon handles don't exist cross-platform
 4. **Tracking**: Every post sync is tracked in database with status

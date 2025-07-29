@@ -2,6 +2,7 @@
 
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/mod.ts";
 import { PostTransformer } from "../backend/services/post-transformer.ts";
+import { DefaultPostFilter } from "../backend/services/post-filter.ts";
 import { ATProtoPost } from "../shared/types.ts";
 
 // Test helper to create sample ATProto post
@@ -236,9 +237,10 @@ Deno.test("PostTransformer - should skip reply posts", () => {
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post);
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {});
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should skip empty posts", () => {
@@ -249,9 +251,10 @@ Deno.test("PostTransformer - should skip empty posts", () => {
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post);
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {});
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should skip reposts (shares without text)", () => {
@@ -269,9 +272,10 @@ Deno.test("PostTransformer - should skip reposts (shares without text)", () => {
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post);
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {});
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should also skip quote posts with additional text", () => {
@@ -289,9 +293,10 @@ Deno.test("PostTransformer - should also skip quote posts with additional text",
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post);
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {});
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should skip quote posts with media (recordWithMedia)", () => {
@@ -317,17 +322,19 @@ Deno.test("PostTransformer - should skip quote posts with media (recordWithMedia
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post);
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {});
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should not skip regular posts", () => {
   const post = createSamplePost();
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post);
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {});
 
-  assertEquals(shouldSkip, false);
+  assertEquals(shouldSync, true);
 });
 
 Deno.test("PostTransformer - should skip posts that start with mentions when enabled", () => {
@@ -345,11 +352,12 @@ Deno.test("PostTransformer - should skip posts that start with mentions when ena
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {
     skip_mentions: true,
   });
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should not skip posts that start with mentions when disabled", () => {
@@ -367,11 +375,12 @@ Deno.test("PostTransformer - should not skip posts that start with mentions when
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {
     skip_mentions: false,
   });
 
-  assertEquals(shouldSkip, false);
+  assertEquals(shouldSync, true);
 });
 
 Deno.test("PostTransformer - should not skip posts that contain mentions but don't start with them", () => {
@@ -389,11 +398,12 @@ Deno.test("PostTransformer - should not skip posts that contain mentions but don
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {
     skip_mentions: true,
   });
 
-  assertEquals(shouldSkip, false);
+  assertEquals(shouldSync, true);
 });
 
 Deno.test("PostTransformer - should skip posts starting with mentions regardless of whitespace", () => {
@@ -411,11 +421,12 @@ Deno.test("PostTransformer - should skip posts starting with mentions regardless
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {
     skip_mentions: true,
   });
 
-  assertEquals(shouldSkip, true);
+  assertEquals(shouldSync, false);
 });
 
 Deno.test("PostTransformer - should not skip posts with mentions after other text", () => {
@@ -433,11 +444,12 @@ Deno.test("PostTransformer - should not skip posts with mentions after other tex
     },
   });
 
-  const shouldSkip = PostTransformer.shouldSkipPost(post, {
+  const filter = new DefaultPostFilter();
+  const shouldSync = filter.shouldSyncPost(post, {
     skip_mentions: true,
   });
 
-  assertEquals(shouldSkip, false);
+  assertEquals(shouldSync, true);
 });
 
 Deno.test("PostTransformer - should format post for Mastodon", () => {

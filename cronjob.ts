@@ -42,7 +42,15 @@ export default async function () {
     });
 
     // Run sync for the single user
-    await syncService.syncAllUsers();
+    const result = await syncService.syncUser();
+
+    if (!result.success) {
+      console.error("Sync failed:", result.errors);
+    } else {
+      console.log(
+        `Sync completed: ${result.postsSuccessful} posts synced, ${result.postsFailed} failed`,
+      );
+    }
 
     // Clean up old post logs to prevent database bloat
     try {

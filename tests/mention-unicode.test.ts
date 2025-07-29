@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.200.0/assert/mod.ts";
-import { PostTransformer } from "../backend/services/post-transformer.ts";
+import { DefaultPostFilter } from "../backend/services/post-filter.ts";
 
 // Helper to create test posts
 function createPost(text: string, facets: any[] = []) {
@@ -111,7 +111,8 @@ Deno.test("PostTransformer - should handle Unicode correctly when detecting ment
 
   for (const testCase of testCases) {
     const post = createPost(testCase.text, testCase.facets);
-    const result = PostTransformer.shouldSkipPost(post, {
+    const filter = new DefaultPostFilter();
+    const result = !filter.shouldSyncPost(post, {
       skip_mentions: true,
     });
 
