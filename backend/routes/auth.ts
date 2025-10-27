@@ -103,7 +103,6 @@ auth.post("/disconnect/bluesky", requireAuth(), async (c) => {
   try {
     await updateUserAccount({
       atproto_did: null,
-      atproto_pds_url: null,
       atproto_handle: null,
       atproto_access_token: null,
       atproto_refresh_token: null,

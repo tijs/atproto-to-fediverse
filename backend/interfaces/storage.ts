@@ -3,7 +3,6 @@
 export interface UserAccount {
   id: number;
   atproto_did?: string;
-  atproto_pds_url?: string;
   atproto_handle?: string;
   atproto_access_token?: string;
   atproto_refresh_token?: string;

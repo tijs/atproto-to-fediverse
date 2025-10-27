@@ -4,7 +4,6 @@ import { TABLES } from "./migrations.ts";
 export interface UserAccount {
   id: number;
   atproto_did?: string;
-  atproto_pds_url?: string;
   atproto_handle?: string;
   atproto_access_token?: string;
   atproto_refresh_token?: string;
@@ -81,16 +80,6 @@ export async function createUserAccount(): Promise<UserAccount> {
 export async function getUserAccount(): Promise<UserAccount | null> {
   const result = await sqlite.execute(
     `SELECT * FROM ${TABLES.USER_ACCOUNTS} WHERE id = 1`,
-  );
-  return (result.rows[0] as unknown as UserAccount) || null;
-}
-
-export async function getUserAccountByHandle(
-  handle: string,
-): Promise<UserAccount | null> {
-  const result = await sqlite.execute(
-    `SELECT * FROM ${TABLES.USER_ACCOUNTS} WHERE atproto_handle = ? AND id = 1`,
-    [handle],
   );
   return (result.rows[0] as unknown as UserAccount) || null;
 }

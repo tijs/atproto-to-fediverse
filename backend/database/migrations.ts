@@ -98,7 +98,6 @@ export async function runMigrations() {
       
       -- Bluesky/ATProto account
       atproto_did TEXT,
-      atproto_pds_url TEXT,
       atproto_handle TEXT,
       atproto_access_token TEXT,
       atproto_refresh_token TEXT,

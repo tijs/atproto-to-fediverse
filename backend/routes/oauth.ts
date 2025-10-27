@@ -424,20 +424,11 @@ oauth.get("/atproto/callback", async (c) => {
         let handle = null;
         const did = tokens.sub;
 
-        // Check if we already have a handle stored for this DID
-        const existingAccount = await getUserAccount();
-        if (
-          existingAccount?.atproto_did === did &&
-          existingAccount?.atproto_handle
-        ) {
-          handle = existingAccount.atproto_handle;
-        } else {
-          // Use proper ATProto identity resolution
-          try {
-            handle = await identityResolver.resolveDidToHandle(did);
-          } catch (_error) {
-            // Identity resolution failed, handle will remain null
-          }
+        // Use proper ATProto identity resolution to verify the handle
+        try {
+          handle = await identityResolver.resolveDidToHandle(did);
+        } catch (_error) {
+          // Identity resolution failed, handle will remain null
         }
 
         // Verify the handle matches the allowed handle for this service
@@ -456,7 +447,6 @@ oauth.get("/atproto/callback", async (c) => {
         // Update user account with ATProto tokens and DPoP keys
         await updateUserAccount({
           atproto_did: did,
-          atproto_pds_url: pdsUrl,
           atproto_handle: handle,
           atproto_access_token: tokens.access_token,
           atproto_refresh_token: tokens.refresh_token,
@@ -494,19 +484,11 @@ oauth.get("/atproto/callback", async (c) => {
     let handle = null;
     const did = tokens.sub;
 
-    // Check if we already have a handle stored for this DID
-    const existingAccount = await getUserAccount();
-    if (
-      existingAccount?.atproto_did === did && existingAccount?.atproto_handle
-    ) {
-      handle = existingAccount.atproto_handle;
-    } else {
-      // Use proper ATProto identity resolution
-      try {
-        handle = await identityResolver.resolveDidToHandle(did);
-      } catch (_error) {
-        // Identity resolution failed, handle will remain null
-      }
+    // Use proper ATProto identity resolution to verify the handle
+    try {
+      handle = await identityResolver.resolveDidToHandle(did);
+    } catch (_error) {
+      // Identity resolution failed, handle will remain null
     }
 
     // Verify the handle matches the allowed handle for this service
@@ -525,7 +507,6 @@ oauth.get("/atproto/callback", async (c) => {
     // Update user account with ATProto tokens and DPoP keys
     await updateUserAccount({
       atproto_did: did,
-      atproto_pds_url: pdsUrl,
       atproto_handle: handle,
       atproto_access_token: tokens.access_token,
       atproto_refresh_token: tokens.refresh_token,

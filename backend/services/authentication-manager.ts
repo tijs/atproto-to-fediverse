@@ -47,24 +47,8 @@ export class AuthenticationManager {
 
     // Dynamically resolve PDS URL from DID
     console.log(`Resolving PDS URL for DID: ${account.atproto_did}`);
-    let pdsUrl: string;
-    try {
-      pdsUrl = await DIDResolver.resolvePDSUrl(account.atproto_did);
-      console.log(`Resolved PDS URL: ${pdsUrl}`);
-    } catch (error) {
-      console.error("Failed to resolve PDS URL:", error);
-      // Fallback to stored URL if resolution fails
-      if (account.atproto_pds_url) {
-        console.log(
-          `Using stored PDS URL as fallback: ${account.atproto_pds_url}`,
-        );
-        pdsUrl = account.atproto_pds_url;
-      } else {
-        throw new Error(
-          `Failed to resolve PDS URL for DID ${account.atproto_did}: ${error}`,
-        );
-      }
-    }
+    const pdsUrl = await DIDResolver.resolvePDSUrl(account.atproto_did);
+    console.log(`Resolved PDS URL: ${pdsUrl}`);
 
     // Initialize ATProto client - prefer App Password from env if available
     let atprotoClient: ATProtoHttpClient;
@@ -82,7 +66,7 @@ export class AuthenticationManager {
       );
       atprotoClient = this.createATProtoClient(
         pdsUrl,
-        account.atproto_handle, // Use handle instead of access token
+        account.atproto_handle, // Use stored handle
         appPassword, // Use app password from env instead of refresh token
         account.atproto_did,
         undefined, // No token refresh callback needed for app passwords

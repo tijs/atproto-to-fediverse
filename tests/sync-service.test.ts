@@ -9,6 +9,9 @@ import {
 } from "../backend/interfaces/http-client.ts";
 import { ATProtoPost } from "../shared/types.ts";
 
+// Set test environment variables
+Deno.env.set("ATPROTO_ALLOWED_HANDLE", "test.bsky.social");
+
 // Minimal mock implementations
 class TestATProtoClient implements ATProtoHttpClient {
   constructor(public posts: ATProtoPost[] = []) {}
@@ -177,8 +180,8 @@ async function setupTestEnvironment(options: {
       setup_completed: options.setupComplete ?? true,
       ...(options.hasATProtoTokens !== false && {
         atproto_access_token: "token",
-        atproto_pds_url: "https://bsky.social",
         atproto_did: "did:plc:test",
+        atproto_handle: "test.bsky.social",
       }),
       ...(options.hasMastodonTokens !== false && {
         mastodon_access_token: "token",
@@ -252,10 +255,9 @@ Deno.test("Step 2: Validate authentication", async (t) => {
     assertEquals(result.postsProcessed, 0);
   });
 
-  await t.step("missing ATProto URL/DID", async () => {
+  await t.step("missing ATProto DID", async () => {
     const storage = await setupTestEnvironment();
     await storage.userAccounts.updateSingle({
-      atproto_pds_url: null,
       atproto_did: null,
     });
 

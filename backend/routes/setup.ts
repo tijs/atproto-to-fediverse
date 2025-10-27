@@ -7,6 +7,7 @@ import {
 } from "../database/queries.ts";
 import { SetupState, SetupStep } from "../../shared/types.ts";
 import { blockIfSetupCompleted } from "./auth.ts";
+import { DIDResolver } from "../services/did-resolver.ts";
 
 const setup = new Hono();
 
@@ -165,10 +166,16 @@ setup.post("/test-connections/:userId", blockIfSetupCompleted(), async (c) => {
     };
 
     // Test ATProto connection
-    if (userAccount.atproto_access_token && userAccount.atproto_pds_url) {
+    if (
+      userAccount.atproto_access_token && userAccount.atproto_did &&
+      userAccount.atproto_handle
+    ) {
       try {
+        // Resolve PDS URL dynamically
+        const pdsUrl = await DIDResolver.resolvePDSUrl(userAccount.atproto_did);
+
         const response = await fetch(
-          `${userAccount.atproto_pds_url}/xrpc/com.atproto.identity.resolveHandle?handle=${userAccount.atproto_handle}`,
+          `${pdsUrl}/xrpc/com.atproto.identity.resolveHandle?handle=${userAccount.atproto_handle}`,
           {
             headers: {
               "Authorization": `Bearer ${userAccount.atproto_access_token}`,
