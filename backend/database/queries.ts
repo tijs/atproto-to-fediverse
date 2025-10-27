@@ -84,6 +84,18 @@ export async function getUserAccount(): Promise<UserAccount | null> {
   return (result.rows[0] as unknown as UserAccount) || null;
 }
 
+// Lookup user account by ATProto handle
+export async function getUserAccountByHandle(
+  handle: string,
+): Promise<UserAccount | null> {
+  const normalized = handle.toLowerCase().replace(/^@/, "");
+  const result = await sqlite.execute(
+    `SELECT * FROM ${TABLES.USER_ACCOUNTS} WHERE lower(atproto_handle) = ? LIMIT 1`,
+    [normalized],
+  );
+  return (result.rows[0] as unknown as UserAccount) || null;
+}
+
 // Get the single user account (for single-user service)
 export async function getSingleUserAccount(): Promise<UserAccount | null> {
   return await getUserAccount();

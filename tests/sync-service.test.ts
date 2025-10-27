@@ -8,6 +8,7 @@ import {
   MastodonHttpClient,
 } from "../backend/interfaces/http-client.ts";
 import { ATProtoPost } from "../shared/types.ts";
+import { jsonResponse, withMockFetch } from "./helpers/mockFetch.ts";
 
 // Set test environment variables
 Deno.env.set("ATPROTO_ALLOWED_HANDLE", "test.bsky.social");
@@ -230,8 +231,22 @@ Deno.test("Step 1: Validate setup is complete", async (t) => {
       createATProtoClient: () => new TestATProtoClient(),
       createMastodonClient: () => new TestMastodonClient(),
     });
-
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.success, true);
   });
 });
@@ -313,7 +328,22 @@ Deno.test("Step 3: Fetch ATProto posts", async (t) => {
       createMastodonClient: () => new TestMastodonClient(),
     });
 
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.success, true);
     assertEquals(result.postsProcessed, 2);
     assertEquals(fetchCalled, true);
@@ -327,7 +357,22 @@ Deno.test("Step 3: Fetch ATProto posts", async (t) => {
       createMastodonClient: () => new TestMastodonClient(),
     });
 
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.success, true);
     assertEquals(result.postsProcessed, 0);
   });
@@ -349,7 +394,22 @@ Deno.test("Step 4: Filter posts", async (t) => {
       createMastodonClient: () => mastodonClient,
     });
 
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.postsProcessed, 2);
     assertEquals(mastodonClient.posts.length, 1);
     assertEquals(mastodonClient.posts[0].content, "Regular post");
@@ -369,7 +429,21 @@ Deno.test("Step 4: Filter posts", async (t) => {
       createMastodonClient: () => mastodonClient,
     });
 
-    await service.syncUser();
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      await service.syncUser();
+    });
     assertEquals(mastodonClient.posts.length, 1);
     assertEquals(mastodonClient.posts[0].content, "Regular post");
   });
@@ -389,7 +463,21 @@ Deno.test("Step 4: Filter posts", async (t) => {
       createMastodonClient: () => mastodonClient,
     });
 
-    await service.syncUser();
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      await service.syncUser();
+    });
     assertEquals(mastodonClient.posts.length, 1);
     assertEquals(mastodonClient.posts[0].content, "Regular post");
   });
@@ -411,7 +499,22 @@ Deno.test("Step 5: Sync to Mastodon", async (t) => {
       createMastodonClient: () => mastodonClient,
     });
 
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.success, true);
     assertEquals(result.postsSuccessful, 2);
     assertEquals(result.postsFailed, 0);
@@ -444,7 +547,22 @@ Deno.test("Step 5: Sync to Mastodon", async (t) => {
       },
     });
 
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.success, true);
     assertEquals(result.postsSuccessful, 0);
     assertEquals(result.postsFailed, 1);
@@ -480,7 +598,22 @@ Deno.test("Step 5: Sync to Mastodon", async (t) => {
       createMastodonClient: () => mastodonClient,
     });
 
-    const result = await service.syncUser();
+    let result: any;
+    await withMockFetch((input) => {
+      const url = String(input);
+      if (
+        url.includes("/com.bad-example.identity.resolveMiniDoc") &&
+        (url.includes("did:plc:test") || url.includes("did%3Aplc%3Atest"))
+      ) {
+        return jsonResponse({
+          did: "did:plc:test",
+          pds: "https://pds.example.com",
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }, async () => {
+      result = await service.syncUser();
+    });
     assertEquals(result.postsSuccessful, 1);
     assertEquals(mastodonClient.posts.length, 1);
     assertEquals(mastodonClient.posts[0].content, "New post");

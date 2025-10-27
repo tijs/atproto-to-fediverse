@@ -21,17 +21,20 @@ export class DIDResolver {
   /**
    * Resolve a DID or handle to its PDS URL
    */
-  static async resolvePDSUrl(identifier: string): Promise<string> {
+  static async resolvePDSUrl(
+    identifier: string,
+    fetchFn?: typeof fetch,
+  ): Promise<string> {
     // If it's a handle, resolve to DID first
     let did: string;
     if (!identifier.startsWith("did:")) {
-      did = await this.resolveHandleToDID(identifier);
+      did = await this.resolveHandleToDID(identifier, fetchFn);
     } else {
       did = identifier;
     }
 
     // Get the mini doc with PDS information
-    const miniDoc = await this.resolveMiniDoc(did);
+    const miniDoc = await this.resolveMiniDoc(did, fetchFn);
 
     if (!miniDoc.pds) {
       throw new Error(`No PDS URL found for DID: ${did}`);
@@ -43,13 +46,17 @@ export class DIDResolver {
   /**
    * Resolve a handle to a DID using the slingshot service
    */
-  private static async resolveHandleToDID(handle: string): Promise<string> {
+  private static async resolveHandleToDID(
+    handle: string,
+    fetchFn?: typeof fetch,
+  ): Promise<string> {
     const url =
       `${this.SLINGSHOT_ENDPOINT}/com.atproto.identity.resolveHandle?handle=${
         encodeURIComponent(handle)
       }`;
 
-    const response = await fetch(url);
+    const doFetch = fetchFn ?? fetch;
+    const response = await doFetch(url);
 
     if (!response.ok) {
       // Consume the response body to prevent resource leak
@@ -67,19 +74,23 @@ export class DIDResolver {
    * Resolve a DID to a mini doc containing PDS information
    * Uses the slingshot-specific query for efficient resolution
    */
-  private static async resolveMiniDoc(did: string): Promise<MiniDoc> {
+  private static async resolveMiniDoc(
+    did: string,
+    fetchFn?: typeof fetch,
+  ): Promise<MiniDoc> {
     const url =
       `${this.SLINGSHOT_ENDPOINT}/com.bad-example.identity.resolveMiniDoc?identifier=${
         encodeURIComponent(did)
       }`;
 
-    const response = await fetch(url);
+    const doFetch = fetchFn ?? fetch;
+    const response = await doFetch(url);
 
     if (!response.ok) {
       // Consume the response body to prevent resource leak
       await response.text().catch(() => {});
       // Fallback to PLC directory if slingshot fails
-      return await this.resolveMiniDocFromPLC(did);
+      return await this.resolveMiniDocFromPLC(did, fetchFn);
     }
 
     const miniDoc: MiniDoc = await response.json();
@@ -89,7 +100,10 @@ export class DIDResolver {
   /**
    * Fallback: Resolve mini doc from PLC directory
    */
-  private static async resolveMiniDocFromPLC(did: string): Promise<MiniDoc> {
+  private static async resolveMiniDocFromPLC(
+    did: string,
+    fetchFn?: typeof fetch,
+  ): Promise<MiniDoc> {
     if (!did.startsWith("did:plc:")) {
       throw new Error(`Cannot resolve non-PLC DID from PLC directory: ${did}`);
     }
@@ -97,7 +111,8 @@ export class DIDResolver {
     const plcId = did.replace("did:plc:", "");
     const url = `${this.PLC_DIRECTORY}/${plcId}`;
 
-    const response = await fetch(url);
+    const doFetch = fetchFn ?? fetch;
+    const response = await doFetch(url);
 
     if (!response.ok) {
       // Consume the response body to prevent resource leak
@@ -130,9 +145,13 @@ export class DIDResolver {
   /**
    * Validate that a PDS URL is accessible
    */
-  static async validatePDSUrl(pdsUrl: string): Promise<boolean> {
+  static async validatePDSUrl(
+    pdsUrl: string,
+    fetchFn?: typeof fetch,
+  ): Promise<boolean> {
     try {
-      const response = await fetch(`${pdsUrl}/xrpc/_health`, {
+      const doFetch = fetchFn ?? fetch;
+      const response = await doFetch(`${pdsUrl}/xrpc/_health`, {
         method: "GET",
       });
       return response.ok;
