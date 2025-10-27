@@ -3,27 +3,29 @@ import { ATProtoPost } from "../../shared/types.ts";
 
 /**
  * ATProto client using App Password authentication
- * Simple implementation using BskyAgent with bsky.social
+ * Supports both bsky.social and self-hosted PDS instances
  */
 export class ATProtoPasswordClient {
   private agent: BskyAgent;
   private did: string;
   private handle: string;
   private appPassword: string;
+  private pdsUrl: string;
 
   constructor(
-    _pdsUrl: string, // Not needed for BskyAgent
+    pdsUrl: string,
     handle: string,
     appPassword: string,
     did: string,
   ) {
-    // Use BskyAgent with bsky.social (the standard approach)
+    // Use BskyAgent with the user's PDS URL (supports self-hosted PDS)
     this.agent = new BskyAgent({
-      service: "https://bsky.social",
+      service: pdsUrl,
     });
     this.did = did;
     this.handle = handle;
     this.appPassword = appPassword;
+    this.pdsUrl = pdsUrl;
   }
 
   /**
@@ -200,22 +202,32 @@ export class ATProtoPasswordClient {
   }
 
   /**
-   * Resolve a blob reference to a URL using bsky.social
+   * Resolve a blob reference to a URL
+   * Tries PDS first, falls back to AppView
    */
   resolveBlobUrl(blobRef: string): string {
-    // Use bsky.social for blob URLs (standard approach)
-    return `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${this.did}&cid=${blobRef}`;
+    // Use the PDS URL for blob resolution (supports self-hosted PDS)
+    return `${this.pdsUrl}/xrpc/com.atproto.sync.getBlob?did=${this.did}&cid=${blobRef}`;
   }
 
   /**
    * Get blob data as ArrayBuffer
+   * Tries PDS first, falls back to AppView if PDS fails
    */
   async getBlobData(blobRef: string): Promise<ArrayBuffer> {
-    const url = this.resolveBlobUrl(blobRef);
-    const response = await fetch(url);
+    // Try PDS first
+    let url = this.resolveBlobUrl(blobRef);
+    let response = await fetch(url);
+
+    // If PDS fails, try AppView (bsky.social)
+    if (!response.ok && this.pdsUrl !== "https://bsky.social") {
+      url =
+        `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${this.did}&cid=${blobRef}`;
+      response = await fetch(url);
+    }
 
     if (!response.ok) {
-      throw new Error("Failed to fetch blob");
+      throw new Error(`Failed to fetch blob from both PDS and AppView`);
     }
 
     return await response.arrayBuffer();
