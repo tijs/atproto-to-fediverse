@@ -114,7 +114,7 @@ export class SyncService {
       }
 
       // Validate authentication and create clients
-      const { atprotoClient, mastodonClient } = this.authenticationManager
+      const { atprotoClient, mastodonClient } = await this.authenticationManager
         .validateAuthenticationAndCreateClients(account);
 
       // Fetch posts from ATProto

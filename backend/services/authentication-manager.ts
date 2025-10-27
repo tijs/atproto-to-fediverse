@@ -3,6 +3,7 @@ import {
   ATProtoHttpClient,
   MastodonHttpClient,
 } from "../interfaces/http-client.ts";
+import { DIDResolver } from "./did-resolver.ts";
 
 export interface AuthenticationResult {
   atprotoClient: ATProtoHttpClient;
@@ -30,18 +31,39 @@ export class AuthenticationManager {
 
   /**
    * Validate authentication credentials and create API clients
+   * Dynamically resolves PDS URL from DID for up-to-date routing
    */
-  validateAuthenticationAndCreateClients(account: any): AuthenticationResult {
+  async validateAuthenticationAndCreateClients(
+    account: any,
+  ): Promise<AuthenticationResult> {
     // Validate required tokens
-    if (
-      !account.atproto_access_token || !account.atproto_pds_url ||
-      !account.atproto_did
-    ) {
+    if (!account.atproto_access_token || !account.atproto_did) {
       throw new Error("Missing ATProto credentials");
     }
 
     if (!account.mastodon_access_token || !account.mastodon_instance_url) {
       throw new Error("Missing Mastodon credentials");
+    }
+
+    // Dynamically resolve PDS URL from DID
+    console.log(`Resolving PDS URL for DID: ${account.atproto_did}`);
+    let pdsUrl: string;
+    try {
+      pdsUrl = await DIDResolver.resolvePDSUrl(account.atproto_did);
+      console.log(`Resolved PDS URL: ${pdsUrl}`);
+    } catch (error) {
+      console.error("Failed to resolve PDS URL:", error);
+      // Fallback to stored URL if resolution fails
+      if (account.atproto_pds_url) {
+        console.log(
+          `Using stored PDS URL as fallback: ${account.atproto_pds_url}`,
+        );
+        pdsUrl = account.atproto_pds_url;
+      } else {
+        throw new Error(
+          `Failed to resolve PDS URL for DID ${account.atproto_did}: ${error}`,
+        );
+      }
     }
 
     // Initialize ATProto client - prefer App Password from env if available
@@ -59,7 +81,7 @@ export class AuthenticationManager {
         "Using App Password from environment for ATProto authentication",
       );
       atprotoClient = this.createATProtoClient(
-        account.atproto_pds_url,
+        pdsUrl,
         account.atproto_handle, // Use handle instead of access token
         appPassword, // Use app password from env instead of refresh token
         account.atproto_did,
@@ -69,7 +91,7 @@ export class AuthenticationManager {
     } else {
       console.log("Using OAuth tokens for ATProto authentication");
       atprotoClient = this.createATProtoClient(
-        account.atproto_pds_url,
+        pdsUrl,
         account.atproto_access_token,
         account.atproto_refresh_token || "",
         account.atproto_did,
